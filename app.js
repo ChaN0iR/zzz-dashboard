@@ -191,12 +191,12 @@ function updateBattery(){
   var el=document.getElementById('bmain');if(!el||!S.battery)return;
   var now=Date.now(),b=batNow(now);
   var ms=msTo(CAP,b.cur);
-  el.innerHTML=BAT_SVG+'電量 <b>'+b.cur+'</b>/'+CAP+'<br><span class="bsub">'+(ms===0?'已滿':'滿電還要 '+dur2(ms)+'（'+dayPart(now+ms)+'）')+'</span>';
+  el.innerHTML=BAT_SVG+'電量 <b>'+b.cur+'</b>/'+CAP+'<br><span class="bsub">'+(ms===0?'已滿':'<span class="ln">滿電還要 '+dur2(ms)+'。</span><span class="ln">預計 '+dayPart(now+ms)+' 滿電。</span>')+'</span>';
   document.getElementById('bfill').style.width=Math.min(100,b.cur/CAP*100)+'%';
   var bn=document.getElementById('bnote');
   if(bn){var ad=new Date(b.at+8*3600000),p=function(n){return ('0'+n).slice(-2);};
    var stale=now-b.at>6*3600000;
-   bn.textContent='讀數 '+b.v+'，時間 '+p(ad.getUTCHours())+':'+p(ad.getUTCMinutes())+'（台北）。電量為估算，已自動同步 HoYoLAB（約每 30 分鐘），用掉後也可手動更新'+(stale?'；讀數已超過 6 小時':'');
+   bn.innerHTML='<span class="ln">讀數 '+b.v+'，時間 '+p(ad.getUTCHours())+':'+p(ad.getUTCMinutes())+'（台北）。</span><span class="ln">電量為估算，約每 30 分鐘自動同步 HoYoLAB，用掉後也可手動更新。</span>'+(stale?'<span class="ln">讀數已超過 6 小時。</span>':'');
    bn.style.color=stale?'#c0392b':'';bn.style.opacity=stale?'1':'.75';}
 }
 function icsStamp(ms){return new Date(ms).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');}
