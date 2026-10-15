@@ -178,6 +178,11 @@ function updateBattery(){
   document.getElementById('bfull').textContent=f===null?'已滿':'滿：'+tpStamp(now+f)+'（'+dur(f)+'後）';
   var t=batEta(T,now);
   document.getElementById('btx').textContent=t===null?'已達成':tpStamp(now+t)+'（'+dur(t)+'後）';
+  var bn=document.getElementById('bnote');
+  if(bn){var ad=new Date(b.at+8*3600000),p=function(n){return ('0'+n).slice(-2);};
+   var stale=now-b.at>6*3600000;
+   bn.textContent='讀數時間 '+p(ad.getUTCHours())+':'+p(ad.getUTCMinutes())+'　電量為估算，使用後請更新讀數';
+   bn.style.color=stale?'#c0392b':'';bn.style.opacity=stale?'1':'.75';}
   document.getElementById('bbase').textContent='讀數 '+b.v+' @ '+tpStamp(b.at)+'（台北）';
 }
 function initBattery(){
@@ -187,7 +192,8 @@ function initBattery(){
    '<span class="small">目標 <input id="btg" type="number" min="1" max="'+CAP+'" value="'+esc(S.batteryTarget)+'"> '+
    [60,120,240].map(function(x){return '<button class="mini" data-t="'+x+'">'+x+'</button>';}).join('')+' <span id="btx"></span></span>'+
    '<span class="small">更新讀數 <input id="bin" type="number" min="0" max="999" placeholder="目前電量"> <button class="mini" id="bset">更新</button></span>'+
-   '<span id="bbase" class="small"></span>';
+   '<span id="bbase" class="small"></span>'+
+   '<span id="bnote" class="small" style="opacity:.75"></span>';
   var tg=document.getElementById('btg');
   function setT(v){v=parseInt(v,10);if(!(v>=1))return;S.batteryTarget=Math.min(CAP,v);tg.value=S.batteryTarget;save();updateBattery();}
   tg.onchange=function(){setT(tg.value);};
