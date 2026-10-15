@@ -91,3 +91,15 @@ input.wide{width:100%;margin-top:6px}
 .brow .gbox{top:100%;margin-top:4px;text-align:left}
 .brow #gmsg{max-width:150px;font-size:12px;flex-basis:auto}
 @media(max-width:700px){.brow .gbtn{padding:5px 10px;font-size:14px}}
+
+/* TEMPORARY phoenix section */
+.phx{max-width:1100px;margin:10px auto 0;border-style:dashed}
+.phx[hidden]{display:none}
+.phxh{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;margin-bottom:8px}
+.phxb{margin-left:auto}
+.phxg{margin-top:12px}.phxg .row{margin-bottom:4px;flex-wrap:wrap;gap:2px 10px}
+.phxi{display:flex;flex-wrap:wrap;gap:8px 12px;margin-top:8px}
+.phxi label{display:flex;flex-direction:column;gap:2px;flex:1 1 110px;min-width:0}
+.phxi input{width:100%;box-sizing:border-box;text-align:right}
+.phxf{margin-top:12px}
+@media(max-width:700px){.phx{margin:8px 10px 0}.phxi label{flex-basis:45%}}

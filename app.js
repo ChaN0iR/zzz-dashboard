@@ -353,7 +353,7 @@ function initGame(){
    '<label class="small">自訂連結（任何 scheme） <input id="gcu" class="wide" value="" placeholder="例如 myapp://"></label>'+
    '<label class="small">Scriptable 腳本名稱（同步電量用） <input id="gscr" class="wide" value=""></label>'+
    '<div class="small">腳本名稱需與 Scriptable 內完全相同，預設「'+DEFAULT_SCRIPT+'」。捷徑建立方式：開啟捷徑 App → 新增捷徑 → 加入「打開 App」→ 選絕區零 → 命名為「'+DEFAULT_SHORTCUT+'」。只在 iPhone / Android 有效。</div>'+
-   '<button class="mini" id="gdef">還原預設</button></div><div id="gmsg" class="small" hidden></div>';
+   '<button class="mini phxrestore" hidden>還原菲歐妮預刷欄</button> <button class="mini" id="gdef">還原預設</button></div><div id="gmsg" class="small" hidden></div>';
   var box=document.getElementById('gset-box'),msg=document.getElementById('gmsg');
   var sc=document.getElementById('gsc'),cu=document.getElementById('gcu'),scr=document.getElementById('gscr');
   var gb=document.getElementById('gbtn'),lb=document.getElementById('logobtn');
@@ -681,7 +681,7 @@ function vTodo(){
 }
 function vData(){
   return '<h1>資料</h1><div class="card"><p>資料只存在這個瀏覽器的 localStorage。換裝置或清除瀏覽器資料前，請先匯出備份。</p>'+
-   '<div class="tools"><button id="bx">匯出 JSON</button><button id="bi">匯入 JSON</button><button id="br">重設為初始資料</button></div><input type="file" id="fi" accept=".json,application/json" style="display:none"><div id="msg" class="small"></div><p class="small">上次匯出：'+(S.lastExport?tpStamp(Date.parse(S.lastExport))+'（台北）':'尚未匯出')+'。匯出內容包含代理人、電量、打卡、目標與日曆。</p></div>';
+   '<div class="tools"><button id="bx">匯出 JSON</button><button id="bi">匯入 JSON</button><button id="br">重設為初始資料</button> <button class="phxrestore" hidden>還原菲歐妮預刷欄</button></div><input type="file" id="fi" accept=".json,application/json" style="display:none"><div id="msg" class="small"></div><p class="small">上次匯出：'+(S.lastExport?tpStamp(Date.parse(S.lastExport))+'（台北）':'尚未匯出')+'。匯出內容包含代理人、電量、打卡、目標與日曆。</p></div>';
 }
 function bindData(){
   var m=document.getElementById('msg');
@@ -696,11 +696,60 @@ function bindData(){
   fi.onchange=function(){
     var f=fi.files[0];if(!f)return;var r=new FileReader();
     r.onload=function(){try{var o=JSON.parse(r.result);if(!o||!Array.isArray(o.agents))throw new Error('缺少 agents');
-      if(!confirm('匯入會覆蓋目前資料，確定嗎？'))return;S=ensure(o);save();m.textContent='匯入完成，共 '+o.agents.length+' 位代理人。';}catch(e){m.textContent='匯入失敗：'+e.message;}};
+      if(!confirm('匯入會覆蓋目前資料，確定嗎？'))return;S=ensure(o);save();phxRender();phxBtns();m.textContent='匯入完成，共 '+o.agents.length+' 位代理人。';}catch(e){m.textContent='匯入失敗：'+e.message;}};
     r.readAsText(f);
   };
-  document.getElementById('br').onclick=function(){if(confirm('所有修改都會消失，確定重設為初始資料嗎？')){S=fresh();save();updateBattery();m.textContent='已重設。';}};
+  document.getElementById('br').onclick=function(){if(confirm('所有修改都會消失，確定重設為初始資料嗎？')){S=fresh();save();updateBattery();phxRender();phxBtns();m.textContent='已重設。';}};
 }
+
+
+/* ---------- TEMPORARY: Phoenix pre-farm tracker (remove this block, #phx, and .phx css to delete) ---------- */
+var PHX=[
+ {k:'seal',t:'突破',n:'異常認證章',target:370,tiers:[['初階異常認證章',1],['高階異常認證章',3],['掌控者認證章',9]]},
+ {k:'chip',t:'技能',n:'引燃晶片',target:2500,tiers:[['基礎引燃晶片',1],['進階引燃晶片',3],['特化引燃晶片',9]]},
+ {k:'feather',t:'高維資料',n:'喋血穢羽',target:60,tiers:[['喋血穢羽',1]]}
+];
+var PHX_DATE='2026-10-21';
+function phxS(){if(!S.phoenix||typeof S.phoenix!=='object')S.phoenix={};var p=S.phoenix;if(!p.c||typeof p.c!=='object')p.c={};return p;}
+function phxEq(c){var o=PHX.map(function(g){var v=0;g.tiers.forEach(function(t,i){v+=Math.max(0,Math.floor(num((p0(c)[g.k]||[])[i])))*t[1];});return Math.min(v,1e9);});return o;}
+function p0(c){return c;}
+function fmt(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+function phxRender(){
+  var el=document.getElementById('phx');if(!el)return;
+  var p=phxS();
+  if(p.hidden){el.hidden=true;el.innerHTML='';return;}
+  el.hidden=false;
+  var eq=phxEq(p.c),tot=0,sum=0;
+  PHX.forEach(function(g,i){tot+=g.target;sum+=Math.min(eq[i],g.target);});
+  var all=Math.round(sum/tot*100);
+  var d=dayDiff(PHX_DATE),dn=d>0?'開放 10/21，還有 '+d+' 天':d===0?'今天 10/21 開放':'10/21 已開放';
+  var h='<div class="phxh"><b>菲歐妮 Phoenix 預刷進度</b><span class="small">暫時欄位 · 總進度 '+all+'% · '+dn+'</span><span class="phxb"><button class="mini" id="phxt">'+(p.collapsed?'展開':'收合')+'</button> <button class="mini" id="phxr">移除此欄</button></span></div>';
+  if(!p.collapsed){
+    h+=bar(all);
+    PHX.forEach(function(g,i){
+      var pc=Math.min(100,Math.round(eq[i]/g.target*100)),cur=p.c[g.k]||[];
+      h+='<div class="phxg"><div class="row"><b>'+g.t+'：'+g.n+'</b><span class="small">折算 '+fmt(eq[i])+' / '+fmt(g.target)+(g.tiers.length>1?' 初階等值':' 枚')+'　'+pc+'%</span></div>'+bar(pc)+'<div class="phxi">'+
+        g.tiers.map(function(t,j){return '<label class="small">'+t[0]+(g.tiers.length>1?'（×'+t[1]+'）':'')+'<input type="number" inputmode="numeric" min="0" step="1" data-g="'+g.k+'" data-i="'+j+'" value="'+esc(cur[j]||'')+'" placeholder="0"></label>';}).join('')+'</div></div>';
+    });
+    h+='<div class="phxf"><button class="mini" id="phxc">清除</button> <span class="small">折算：3 個低階 = 1 個高階，掌控者 = 9 個初階（比例與目標 370、2,500、60 取自參考頁，未經官方核實）。</span></div>';
+  }
+  el.innerHTML=h;
+  var t=document.getElementById('phxt');if(t)t.onclick=function(){p.collapsed=!p.collapsed;save();phxRender();};
+  document.getElementById('phxr').onclick=function(){if(confirm('移除此欄？之後可在「開啟遊戲」旁的設定或資料頁還原。')){p.hidden=true;save();phxRender();phxBtns();}};
+  var c=document.getElementById('phxc');if(c)c.onclick=function(){if(confirm('清除所有預刷數量？')){p.c={};save();phxRender();}};
+  [].forEach.call(el.querySelectorAll('input[data-g]'),function(x){x.oninput=function(){
+    var g=x.getAttribute('data-g'),i=+x.getAttribute('data-i');if(!p.c[g])p.c[g]=[];p.c[g][i]=x.value===''?'':Math.max(0,Math.floor(num(x.value)));save();phxLive();};});
+}
+function phxLive(){/* update numbers without losing input focus */
+  var el=document.getElementById('phx');if(!el)return;var p=phxS(),eq=phxEq(p.c),tot=0,sum=0;
+  PHX.forEach(function(g,i){tot+=g.target;sum+=Math.min(eq[i],g.target);});
+  var all=Math.round(sum/tot*100);
+  var gs=el.querySelectorAll('.phxg');
+  PHX.forEach(function(g,i){var pc=Math.min(100,Math.round(eq[i]/g.target*100));var b=gs[i].querySelector('.bar');b.className='bar '+(pc<50?'low':pc<75?'mid':'hi');b.firstChild.style.width=pc+'%';gs[i].querySelector('.row .small').textContent='折算 '+fmt(eq[i])+' / '+fmt(g.target)+(g.tiers.length>1?' 初階等值':' 枚')+'　'+pc+'%';});
+  var top=el.querySelector('.phxh .small'),d=dayDiff(PHX_DATE);top.textContent='暫時欄位 · 總進度 '+all+'% · '+(d>0?'開放 10/21，還有 '+d+' 天':d===0?'今天 10/21 開放':'10/21 已開放');
+  var ob=el.querySelector(':scope > .bar');ob.className='bar '+(all<50?'low':all<75?'mid':'hi');ob.firstChild.style.width=all+'%';
+}
+function phxBtns(){[].forEach.call(document.querySelectorAll('.phxrestore'),function(b){b.hidden=!phxS().hidden;b.onclick=function(){phxS().hidden=false;save();phxRender();phxBtns();};});}
 
 function parse(){
   var h=location.hash.replace(/^#/,'')||'/';var qs={},i=h.indexOf('?');
@@ -731,6 +780,7 @@ function render(keep){
   if(route==='goals'){bindGoals();bindGeneric();}
   if(route==='events'){bindEvents();bindGeneric();}
   bindCommon();
+  phxRender();phxBtns();
   updateBattery();
   window.scrollTo(0,keep?sy:0);
 }
