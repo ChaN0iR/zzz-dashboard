@@ -204,6 +204,26 @@ function updateBattery(){
    bn.textContent='讀數 '+b.v+'，時間 '+p(ad.getUTCHours())+':'+p(ad.getUTCMinutes())+'（台北）。電量為估算，用掉後請更新讀數'+(stale?'；讀數已超過 6 小時':'');
    bn.style.color=stale?'#c0392b':'';bn.style.opacity=stale?'1':'.75';}
 }
+function icsStamp(ms){return new Date(ms).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');}
+function makeIcs(T,startMs,title){
+  return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//zzz-dashboard//TW','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',
+   'UID:zzz-battery-'+T+'-'+startMs+'@zzz-dashboard','DTSTAMP:'+icsStamp(Date.now()),'DTSTART:'+icsStamp(startMs),'DTEND:'+icsStamp(startMs+15*60000),
+   'SUMMARY:'+title,'DESCRIPTION:絕區零電量預計已達 '+T,'BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+title,'TRIGGER:PT0S','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n')+'\r\n';
+}
+function makeAlarm(T,out){
+  out.style.color='';out.textContent='';
+  var b=batNow(),now=Date.now();
+  if(b.cur>=T){out.textContent='已達 '+T+'（目前 '+b.cur+'）';return;}
+  var start=b.at+Math.max(0,T-b.v)*MIN6;
+  var title='絕區零電量滿 '+T,when=tpDate(start)+' '+hm(start).replace('明天 ','');
+  var ics=makeIcs(T,start,title);
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar;charset=utf-8'}));
+  a.download='zzz-battery-'+T+'.ics';a.style.display='none';document.body.appendChild(a);a.click();
+  setTimeout(function(){document.body.removeChild(a);},1000);
+  var g='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(title)+'&dates='+icsStamp(start)+'/'+icsStamp(start+15*60000)+'&details='+encodeURIComponent('絕區零電量預計已達 '+T);
+  out.innerHTML='預計 '+when+'（台北）達 '+T+'。若沒跳出加入行事曆，改用 <a target="_blank" rel="noopener" href="'+g+'">Google 行事曆</a>';
+}
 function bf2(){return document.getElementById('bform');}
 function initBattery(){
   var el=document.getElementById('bat');if(!el)return;
@@ -216,6 +236,8 @@ function initBattery(){
    goals.map(function(x){return '<button class="chip" data-g="'+x+'">'+x+'</button>';}).join('')+
    '<input id="bgi" type="number" min="1" max="'+CAP+'" placeholder="自訂"></div>'+
    '<div id="bq" class="bres"></div>'+
+   '<div class="bblk"><button class="mini" id="bal" type="button">滿 <span id="balt">200</span> 時提醒我</button> <input id="bai" type="number" min="1" max="'+CAP+'" placeholder="200" aria-label="提醒目標電量"></div>'+
+   '<div id="bar" class="bres" aria-live="polite"></div>'+
    '<div class="bblk"><span class="bl">預計用電</span> <input id="bsi" type="number" min="1" max="999" placeholder="用多少"> '+
    '<button class="mini" id="bsc">清除</button></div>'+
    '<div id="bsp" class="bres"></div>'+
@@ -230,6 +252,12 @@ function initBattery(){
   si.value=S.batterySpend||'';
   si.oninput=function(){var v=parseInt(si.value,10);S.batterySpend=v>=1?v:0;save();updateBattery();};
   document.getElementById('bsc').onclick=function(){si.value='';S.batterySpend=0;save();updateBattery();};
+  var bai=document.getElementById('bai');
+  bai.value=S.alarmTarget&&S.alarmTarget!==200?S.alarmTarget:'';
+  function alT(){var v=parseInt(bai.value,10);return v>=1&&v<=CAP?v:200;}
+  bai.oninput=function(){var t=alT();S.alarmTarget=t;save();document.getElementById('balt').textContent=t;};
+  document.getElementById('balt').textContent=alT();
+  document.getElementById('bal').onclick=function(){makeAlarm(alT(),document.getElementById('bar'));};
   var bin=document.getElementById('bin');
   function setR(){
     var ok=document.getElementById('bok'),raw=String(bin.value).trim();
