@@ -183,14 +183,15 @@ function hm(ms){
 function dayPart(ms){
   var o=tp(ms),h=parseInt(o.hour,10)%24,d=tpDate(ms)===tpDate(Date.now())?'今天':'明天';
   var p=h<5?'凌晨':h<11?'早上':h<13?'中午':h<18?'下午':'晚上';
-  return d+p;
+  var m=parseInt(o.minute,10);
+  return d+' '+('0'+h).slice(-2)+':'+('0'+m).slice(-2)+' · '+p;
 }
 var BAT_SVG='<svg class="bico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><rect x="3" y="7" width="16" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="20" y="10" width="2" height="4" rx="1" fill="currentColor"/><path d="M11.5 8.5 8.5 12.5h2.6L10.4 15.5l3.2-4h-2.6z" fill="currentColor"/></svg>';
 function updateBattery(){
   var el=document.getElementById('bmain');if(!el||!S.battery)return;
   var now=Date.now(),b=batNow(now);
   var ms=msTo(CAP,b.cur);
-  el.innerHTML=BAT_SVG+'電量 <b>'+b.cur+'</b>/'+CAP+'<br><span class="bsub">'+(ms===0?'已滿':'滿電還要 '+dur2(ms)+'（約 '+dayPart(now+ms)+'）')+'</span>';
+  el.innerHTML=BAT_SVG+'電量 <b>'+b.cur+'</b>/'+CAP+'<br><span class="bsub">'+(ms===0?'已滿':'滿電還要 '+dur2(ms)+'（'+dayPart(now+ms)+'）')+'</span>';
   document.getElementById('bfill').style.width=Math.min(100,b.cur/CAP*100)+'%';
   var bn=document.getElementById('bnote');
   if(bn){var ad=new Date(b.at+8*3600000),p=function(n){return ('0'+n).slice(-2);};
