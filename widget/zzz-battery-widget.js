@@ -359,6 +359,10 @@ async function main() {
   }
 
   const widget = buildWidget(state);
+  // 保險：任何狀態都必須有 https / shortcuts 連結，點擊才不會進 Scriptable 頁面
+  if (!widget.url || String(widget.url).indexOf("scriptable://") === 0) {
+    widget.url = CONFIG.OPEN_GAME_ON_TAP ? (CONFIG.GAME_URL || "shortcuts://run-shortcut?name=" + encodeURIComponent(CONFIG.SHORTCUT_NAME)) : CONFIG.DASHBOARD_URL;
+  }
   if (inApp) {
     if (config.widgetFamily === "small") await widget.presentSmall(); else await widget.presentMedium();
   } else {
