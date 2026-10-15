@@ -258,7 +258,7 @@ function initGame(){
   inp.onchange=function(){var v=inp.value.trim();try{localStorage.setItem('zzz-scheme',v);}catch(e){}if(!v)inp.value=DEFAULT_SCHEME;};
   document.getElementById('gdef').onclick=function(){try{localStorage.removeItem('zzz-scheme');}catch(e){}inp.value=DEFAULT_SCHEME;};
   document.getElementById('gset').onclick=function(){box.hidden=!box.hidden;};
-  document.getElementById('gbtn').onclick=function(){
+  var launch=function(){
     var mobile=/iPhone|iPad|iPod|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
     msg.hidden=false;
     if(!mobile){msg.textContent='電腦上無法開啟遊戲，請在手機使用。';return;}
@@ -273,6 +273,9 @@ function initGame(){
       msg.innerHTML='沒有開啟遊戲。可能尚未安裝，或 scheme 不正確（見設定）。<a href="'+STORE_URL+'">前往 App Store 頁面</a>';
     },1500);
   };
+  document.getElementById('gbtn').onclick=launch;
+  var lb=document.getElementById('logobtn');if(lb)lb.onclick=launch;
+  window.launchGame=launch;
 }
 
 /* ---------- backup notice ---------- */
