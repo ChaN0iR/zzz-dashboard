@@ -48,3 +48,14 @@ ul.gap li{padding:4px 0;border-bottom:1px solid var(--b);color:var(--a);font-siz
 ul.gap li:last-child{border:0}
 .back{color:var(--m);text-decoration:none;font-size:13px}
 .small{color:var(--m);font-size:12px}
+header{gap:8px 20px}
+.bat{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:13px;border-top:1px solid var(--b);padding-top:8px}
+.bat .bn b{font-size:20px;font-weight:600}
+.bat input{width:64px;padding:2px 6px;text-align:right}
+button.mini{padding:1px 8px;font-size:12px}
+input.wide{width:100%;margin-top:6px}
+.note{color:var(--m);font-size:12px;border:1px solid var(--b);border-radius:4px;padding:6px 10px;margin-bottom:12px}
+.note a{color:var(--a)}
+.row input[type=date]{width:auto}
+@media(max-width:700px){.bat{font-size:12px}}
+@media(max-width:700px){header{padding:6px 10px;gap:4px 12px}nav a{padding:3px 8px;font-size:14px}.bat{padding-top:4px;gap:2px 10px}.brand{font-size:14px}}

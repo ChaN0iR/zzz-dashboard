@@ -11,20 +11,102 @@ function load(){
   try{var s=localStorage.getItem(KEY);if(s){var o=JSON.parse(s);if(o&&o.agents)return o;}}catch(e){}
   return fresh();
 }
-function fresh(){
+function fresh(){return ensure(fresh0());}
+function fresh0(){
   var d=clone(window.ZZZ_INITIAL);
   d.agents.forEach(function(a){a.priority='養成中';a.note='';});
   return d;
 }
-var S=load();
+var S=ensure(load());
+function nowISO(){return new Date().toISOString();}
+function ensure(o){
+  var ini=window.ZZZ_INITIAL.battery;
+  if(!o.battery||!o.battery.at||isNaN(Date.parse(o.battery.at))||(ini&&Date.parse(ini.at)>Date.parse(o.battery.at)))o.battery=ini?clone(ini):{value:0,at:nowISO()};
+  ['checkins','goals','events'].forEach(function(k){if(!Array.isArray(o[k]))o[k]=[];});
+  if(!o.batteryTarget)o.batteryTarget=240;
+  if(!o.created)o.created=nowISO();
+  return o;
+}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function num(v){var n=parseFloat(String(v==null?'':v).replace(/[^\d.\-]/g,''));return isNaN(n)?0:n;}
-function lvn(s){return num(s);}
+function lvn(s){var m=String(s==null?'':s).match(/\d+/);return m?parseInt(m[0],10):0;}
 function fin(a,k){var v=a.final_stats&&a.final_stats[k];return v&&v.length?v[v.length-1]:'';}
 
 function engineOK(a){return a.w_engine&&a.w_engine.name&&lvn(a.w_engine.level)>=60;}
 function discs(a){return a.drive_discs||[];}
+/* ---------- role / build type ---------- */
+var BT=['暴擊輸出','異常','支援','擊破','防護'];
+var FLATABLE={'攻擊力':1,'生命值':1,'防禦力':1};
+var W={
+ '暴擊輸出':{'暴擊率':1,'暴擊傷害':1,'攻擊力%':0.7,'攻擊力':0.2,'穿透值':0.5},
+ '異常':{'異常精通':1,'攻擊力%':0.6,'攻擊力':0.15,'穿透值':0.4},
+ '支援':{'攻擊力%':0.6,'生命值%':0.6,'防禦力%':0.4,'異常精通':0.6,'暴擊率':0.3,'暴擊傷害':0.3,'穿透值':0.2,'攻擊力':0.15},
+ '擊破':{'攻擊力%':0.8,'穿透值':0.5,'暴擊率':0.3,'暴擊傷害':0.3,'攻擊力':0.2},
+ '防護':{'生命值%':1,'防禦力%':1,'生命值':0.2,'防禦力':0.2,'攻擊力%':0.2}
+};
+var MAINOK={
+ '暴擊輸出':{4:['暴擊率','暴擊傷害'],6:['攻擊力']},
+ '異常':{4:['異常精通'],6:['異常掌控','攻擊力']},
+ '擊破':{4:['暴擊率','暴擊傷害','攻擊力'],6:['衝擊力']}
+};
+var LOWPCT=55;
+function inferBuild(a){
+  var w=a.w_engine&&a.w_engine.name?a.w_engine:null,sub=w?(Object.keys(w.sub_stat||{})[0]||''):'';
+  if(sub==='暴擊率'||sub==='暴擊傷害'||sub==='穿透率')return '暴擊輸出';
+  if(sub==='異常掌控'||sub==='異常精通')return '異常';
+  if(sub==='衝擊力')return '擊破';
+  if(sub==='能量自動回復')return '支援';
+  if(sub==='防禦力'||sub==='生命值')return '防護';
+  var cr=num(fin(a,'暴擊率')),am=num(fin(a,'異常精通'));
+  if(cr>=40)return '暴擊輸出';
+  if(am>=250)return '異常';
+  return '支援';
+}
+function buildOf(a){return BT.indexOf(a.build)>=0?a.build:inferBuild(a);}
+function subW(t,x){var st=x.stat,k=st+(FLATABLE[st]&&/%/.test(x.value)?'%':'');return (W[t]||{})[k]||0;}
+function mainOK(t,slot,mk){
+  if(slot<4||!MAINOK[t])return null;
+  if(slot===5)return /傷害加成$|穿透率/.test(mk);
+  var l=MAINOK[t][slot];return l?l.indexOf(mk)>=0:null;
+}
+function mainWant(t,slot){return slot===5?'屬性傷害加成或穿透率':(MAINOK[t]&&MAINOK[t][slot]||[]).join('／');}
+function roleEval(a,d,c15,sk,mx){
+  var bt=buildOf(a),effs=[],low=[],mm=0,mc=0,mbad=[],zero=[],dEff={};
+  d.forEach(function(x,i){
+    var sl=x.slot||i+1,l=lvn(x.level),sb=x.substats||[];
+    if(l===0)zero.push(sl);
+    if(sb.length&&l>0){
+      var ef=sb.reduce(function(t,y){return t+subW(bt,y);},0)/sb.length;
+      var pct=Math.min(100,Math.round(ef/0.7*100));
+      effs.push(ef);dEff[sl]=pct;
+      if(pct<LOWPCT)low.push({slot:sl,set:x.set,pct:pct});
+    }
+    var mk=Object.keys(x.main_stat||{})[0]||'',ok=mainOK(bt,sl,mk);
+    if(ok!==null){mc++;if(ok)mm++;else mbad.push({slot:sl,cur:mk||'空',want:mainWant(bt,sl)});}
+  });
+  var avg=effs.length?effs.reduce(function(t,y){return t+y;},0)/effs.length:0;
+  var effPct=Math.min(100,Math.round(avg/0.7*100));
+  var w=a.w_engine,rs=0;
+  if(w&&w.name)rs+=25*Math.min(1,lvn(w.level)/60);
+  rs+=25*c15/6+10*sk/mx+30*effPct/100+10*(mc?mm/mc:1);
+  return{bt:bt,rs:Math.round(rs),effPct:effPct,discEff:dEff,low:low,mbad:mbad,zero:zero};
+}
+function autoNext(a,e,d){
+  var w=a.w_engine;
+  if(!w||!w.name)return '裝備一把音擎';
+  if(lvn(w.level)<60)return '音擎升到 Lv60（目前 Lv'+lvn(w.level)+'）';
+  if(d.length<6)return '補齊驅動盤（目前 '+d.length+' / 6 片）';
+  if(e.zero.length)return '把第 '+e.zero.join('、')+' 號位的 Lv0 驅動盤升級';
+  if(e.mbad.length)return '第 '+e.mbad[0].slot+' 號位主詞條換成 '+e.mbad[0].want+'（目前 '+e.mbad[0].cur+'）';
+  if(e.low.length)return '更換第 '+e.low[0].slot+' 號位驅動盤（有效詞條只有 '+e.low[0].pct+'%）';
+  if(e.c15<6)return '把驅動盤升到 Lv15（目前 '+e.c15+' / 6）';
+  var lowsk=SK.filter(function(k){return num(a.skills&&a.skills[k])<SKMAX[k]*0.5;});
+  if(lowsk.length)return '提升技能：'+lowsk.join('、');
+  return '目前沒有明顯缺口，維持即可';
+}
+function nextOf(a,e){return (a.next&&String(a.next).trim())||e.next;}
+
 function evalAgent(a){
   var gaps=[],sc=0;
   var w=a.w_engine;
@@ -49,11 +131,185 @@ function evalAgent(a){
   sc+=15*cp;
   sc=Math.round(sc);
   var flag=!engineOK(a)||c0>0||sc<60;
-  return{score:sc,gaps:gaps,flag:flag,c15:c15,c0:c0,skAvg:sk/SK.length,cr:cr,cd:cd};
+  var R=roleEval(a,d,c15,sk,mx);
+  R.low.forEach(function(x){gaps.push('第 '+x.slot+' 號位驅動盤有效詞條偏低（'+x.pct+'%）');});
+  R.mbad.forEach(function(x){gaps.push('第 '+x.slot+' 號位主詞條「'+x.cur+'」不符'+R.bt+'（建議 '+x.want+'）');});
+  var res={score:sc,gaps:gaps,flag:flag,c15:c15,c0:c0,skAvg:sk/SK.length,cr:cr,cd:cd,bt:R.bt,rs:R.rs,effPct:R.effPct,discEff:R.discEff,low:R.low,mbad:R.mbad,zero:R.zero};
+  res.next=autoNext(a,res,d);
+  return res;
 }
 function bar(p){var c=p<50?'low':p<75?'mid':'hi';return '<div class="bar '+c+'"><i style="width:'+p+'%"></i></div>';}
 
 function agentById(i){return S.agents.filter(function(a){return a.index===i;})[0];}
+
+/* ---------- time helpers (Asia/Taipei) ---------- */
+var TZ='Asia/Taipei',MIN6=360000,CAP=240;
+var dtf=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+function tp(ms){var o={};dtf.formatToParts(new Date(ms)).forEach(function(p){o[p.type]=p.value;});return o;}
+function tpDate(ms){var o=tp(ms);return o.year+'-'+o.month+'-'+o.day;}
+function tpStamp(ms){
+  var o=tp(ms),t=tpDate(ms),n=Date.now();
+  var day=t===tpDate(n)?'今天':t===tpDate(n+864e5)?'明天':t===tpDate(n-864e5)?'昨天':o.month+'/'+o.day;
+  return day+' '+o.hour+':'+o.minute;
+}
+function dur(ms){
+  var m=Math.ceil(Math.max(0,ms)/60000),d=Math.floor(m/1440),h=Math.floor(m%1440/60),mm=m%60;
+  if(d)return d+' 天'+(h?' '+h+' 小時':'');
+  if(h)return h+' 小時'+(mm?' '+mm+' 分':'');
+  return mm+' 分';
+}
+function dayStart(s){return Date.parse(s+'T00:00:00+08:00');}
+function dayDiff(s){return Math.round((dayStart(s)-dayStart(tpDate(Date.now())))/864e5);}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+
+/* ---------- battery ---------- */
+function batNow(now){
+  var b=S.battery,at=Date.parse(b.at),v=num(b.value);
+  now=now||Date.now();
+  var cur=v>=CAP?v:Math.min(CAP,v+Math.max(0,Math.floor((now-at)/MIN6)));
+  return{cur:cur,at:at,v:v};
+}
+function batEta(T,now){var b=batNow(now),n=now||Date.now();if(b.cur>=T)return null;return b.at+(T-b.v)*MIN6-n;}
+function updateBattery(){
+  var el=document.getElementById('bcur');if(!el||!S.battery)return;
+  var now=Date.now(),b=batNow(now),T=Math.max(1,Math.min(CAP,parseInt(S.batteryTarget,10)||CAP));
+  el.textContent=b.cur;
+  var f=batEta(CAP,now);
+  document.getElementById('bfull').textContent=f===null?'已滿':'滿：'+tpStamp(now+f)+'（'+dur(f)+'後）';
+  var t=batEta(T,now);
+  document.getElementById('btx').textContent=t===null?'已達成':tpStamp(now+t)+'（'+dur(t)+'後）';
+  document.getElementById('bbase').textContent='讀數 '+b.v+' @ '+tpStamp(b.at)+'（台北）';
+}
+function initBattery(){
+  var el=document.getElementById('bat');if(!el)return;
+  el.innerHTML='<span class="bn"><span class="small">電量</span> <b id="bcur">-</b><span class="small"> / '+CAP+'</span></span>'+
+   '<span id="bfull" class="small"></span>'+
+   '<span class="small">目標 <input id="btg" type="number" min="1" max="'+CAP+'" value="'+esc(S.batteryTarget)+'"> '+
+   [60,120,240].map(function(x){return '<button class="mini" data-t="'+x+'">'+x+'</button>';}).join('')+' <span id="btx"></span></span>'+
+   '<span class="small">更新讀數 <input id="bin" type="number" min="0" max="999" placeholder="目前電量"> <button class="mini" id="bset">更新</button></span>'+
+   '<span id="bbase" class="small"></span>';
+  var tg=document.getElementById('btg');
+  function setT(v){v=parseInt(v,10);if(!(v>=1))return;S.batteryTarget=Math.min(CAP,v);tg.value=S.batteryTarget;save();updateBattery();}
+  tg.onchange=function(){setT(tg.value);};
+  [].forEach.call(el.querySelectorAll('button[data-t]'),function(b){b.onclick=function(){setT(b.getAttribute('data-t'));};});
+  var bin=document.getElementById('bin');
+  function setR(){
+    var v=parseInt(bin.value,10);if(isNaN(v)||v<0||v>999)return;
+    S.battery={value:v,at:nowISO()};save();bin.value='';updateBattery();
+  }
+  document.getElementById('bset').onclick=setR;
+  bin.onkeydown=function(e){if(e.key==='Enter')setR();};
+  updateBattery();
+  if(typeof setInterval==='function')setInterval(updateBattery,30000);
+}
+
+/* ---------- backup notice ---------- */
+function backupNotice(){
+  var base=Date.parse(S.lastExport||S.created);if(isNaN(base))return '';
+  var days=Math.floor((Date.now()-base)/864e5);
+  if(days<=30)return '';
+  return '<div class="note">'+(S.lastExport?'距離上次匯出備份已 '+days+' 天':'已 '+days+' 天沒有匯出備份')+'，建議到<a href="#/data">資料頁</a>匯出一份 JSON。</div>';
+}
+
+/* ---------- new views ---------- */
+function vNextOverview(E){
+  var l=S.agents.map(function(a,i){return{a:a,e:evalAgent(a)};}).filter(function(x){return x.a.priority==='主力';});
+  var h='<h2>主力下一步</h2>';
+  if(!l.length)return h+'<div class="card small">尚未指定主力。到代理人頁面把優先度改成「主力」，這裡就會列出每位的下一步。</div>';
+  return h+'<div class="card">'+l.map(function(x){return '<div class="row"><a href="#/agent/'+x.a.index+'" style="color:inherit"><b>'+esc(x.a.name)+'</b> <span class="small">'+esc(x.e.bt)+'</span></a><span style="text-align:right;color:var(--a)">'+esc(nextOf(x.a,x.e))+'</span></div>';}).join('')+'</div>';
+}
+function vRoleCard(a,e,P){
+  var h='';
+  h+='<h2>角色評分與有效詞條</h2><div class="card">'+
+   '<div class="row"><label>建置類型</label><select data-p="'+P+'.build"><option value="">自動判斷（'+esc(inferBuild(a))+'）</option>'+BT.map(function(t){return '<option'+(a.build===t?' selected':'')+'>'+t+'</option>';}).join('')+'</select></div>'+
+   '<div class="row"><label>角色分數（'+esc(e.bt)+'）</label><span>'+e.rs+'</span></div>'+bar(e.rs)+
+   '<div class="row"><label>驅動盤平均有效詞條</label><span>'+e.effPct+'%</span></div>';
+  var d=discs(a);
+  d.forEach(function(x,i){
+    var sl=x.slot||i+1,p=e.discEff[sl];
+    h+='<div class="row"><label>第 '+sl+' 號位 '+esc(x.set)+'</label><span>'+(p==null?'<span class="small">Lv0 或無詞條</span>':p+'%'+(p<LOWPCT?' <span class="flag">偏低</span>':''))+'</span></div>';
+  });
+  var W0=W[e.bt]||{};
+  h+='<div class="small" style="margin-top:6px">'+esc(e.bt)+'的有效詞條權重：'+esc(Object.keys(W0).map(function(k){return k.replace('%','（%）')+' '+W0[k];}).join('、'))+'。有效度 = 該盤副詞條平均權重 / 0.7，低於 '+LOWPCT+'% 視為偏低。</div></div>';
+  h+='<h2>下一步</h2><div class="card"><div class="small">自動建議：'+esc(e.next)+'</div>'+
+   '<input class="wide" data-p="'+P+'.next" value="'+esc(a.next||'')+'" placeholder="留空則使用自動建議">'+
+   '<div class="tools" style="margin:8px 0 0"><button data-apply="'+P.split('.')[1]+'">套用建議到欄位</button><button data-clear="'+P.split('.')[1]+'">清除（改用自動）</button></div></div>';
+  return h;
+}
+function delBtn(path){return '<button class="mini" data-del="'+path+'">刪除</button>';}
+function vDaily(){
+  var sets=Object.keys(S.set_effects||{});
+  var h='<h1>每日打卡</h1><div class="card"><div class="tools" style="margin:0">'+
+   '<input type="date" id="dd" value="'+tpDate(Date.now())+'">'+
+   '<input type="number" id="du" min="0" placeholder="使用電量">'+
+   '<input id="ds" list="dsl" placeholder="刷的驅動盤套裝">'+
+   '<datalist id="dsl">'+sets.map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist>'+
+   '<input type="number" id="dk" min="0" placeholder="有用掉落數">'+
+   '<input id="dn" placeholder="備註" style="flex:1;min-width:140px">'+
+   '<button id="dadd">新增打卡</button></div></div>';
+  var c=S.checkins.map(function(x,i){return{x:x,i:i};}).sort(function(a,b){return String(b.x.date).localeCompare(String(a.x.date))||b.i-a.i;});
+  var wk=c.filter(function(o){return dayDiff(o.x.date)>-7;});
+  h+='<p class="small">近 7 天：打卡 '+wk.length+' 次，使用電量 '+wk.reduce(function(t,o){return t+num(o.x.used);},0)+'，有用掉落 '+wk.reduce(function(t,o){return t+num(o.x.drops);},0)+'。</p>';
+  h+='<h2>歷史</h2>';
+  if(!c.length)return h+'<div class="card small">還沒有打卡紀錄。</div>';
+  h+='<div class="tw"><table><thead><tr><th>日期</th><th>使用電量</th><th>套裝</th><th>有用掉落</th><th>備註</th><th></th></tr></thead><tbody>'+
+   c.map(function(o){var x=o.x;return '<tr><td>'+esc(x.date)+'</td><td>'+esc(x.used)+'</td><td>'+esc(x.set)+'</td><td>'+esc(x.drops)+'</td><td style="white-space:normal">'+esc(x.note)+'</td><td>'+delBtn('checkins.'+o.i)+'</td></tr>';}).join('')+'</tbody></table></div>';
+  return h;
+}
+function bindDaily(){
+  document.getElementById('dadd').onclick=function(){
+    var g=function(i){return document.getElementById(i).value;};
+    S.checkins.push({id:uid(),date:g('dd')||tpDate(Date.now()),used:g('du'),set:g('ds'),drops:g('dk'),note:g('dn')});
+    save();render(true);
+  };
+}
+function vGoals(){
+  var h='<h1>每週目標</h1><div class="card"><div class="tools" style="margin:0"><input id="gt" placeholder="目標內容" style="flex:1;min-width:160px"><input type="date" id="gd"><button id="gadd">新增目標</button></div></div><h2>清單</h2>';
+  if(!S.goals.length)return h+'<div class="card small">還沒有目標。</div>';
+  var l=S.goals.map(function(g,i){return{g:g,i:i};}).sort(function(a,b){return (a.g.done?1:0)-(b.g.done?1:0)||String(a.g.date||'9').localeCompare(String(b.g.date||'9'));});
+  h+='<div class="card">'+l.map(function(o){
+    var g=o.g,p='goals.'+o.i,cd='';
+    if(g.date){var n=dayDiff(g.date);cd=g.done?'':(n<0?'<span style="color:var(--r)">已過期 '+(-n)+' 天</span>':n===0?'<span style="color:var(--w)">今天到期</span>':'還有 '+n+' 天');}
+    return '<div class="row"><input type="checkbox" data-ck="'+p+'.done"'+(g.done?' checked':'')+' style="width:auto"><input data-p="'+p+'.text" value="'+esc(g.text)+'" style="flex:1;text-align:left;width:auto;min-width:0'+(g.done?';text-decoration:line-through;color:var(--m)':'')+'"><input type="date" data-p="'+p+'.date" value="'+esc(g.date||'')+'" style="width:auto"><span class="small" style="min-width:80px;text-align:right">'+cd+'</span>'+delBtn(p)+'</div>';}).join('')+'</div>';
+  return h;
+}
+function bindGoals(){
+  document.getElementById('gadd').onclick=function(){
+    var t=document.getElementById('gt').value.trim();if(!t)return;
+    S.goals.push({id:uid(),text:t,date:document.getElementById('gd').value,done:false});save();render(true);
+  };
+}
+var EVT=['活動','卡池','其他'];
+function evStatus(e){
+  if(!e.start&&!e.end)return '';
+  var n=e.start?dayDiff(e.start):-1,m=e.end?dayDiff(e.end):null;
+  if(n>0)return n+' 天後開始';
+  if(m===null)return n===0?'今天開始':'已開始';
+  if(m<0)return '<span class="small">已結束</span>';
+  return '進行中，'+(m===0?'今天結束':m+' 天後結束');
+}
+function vEvents(){
+  var h='<h1>活動與卡池日曆</h1><p class="small">手動維護，不會連到外部資料。日期以台北時間計算。</p><div class="card"><div class="tools" style="margin:0"><input id="en" placeholder="名稱" style="flex:1;min-width:140px"><select id="et">'+EVT.map(function(t){return '<option>'+t+'</option>';}).join('')+'</select><label class="small">開始 <input type="date" id="es"></label><label class="small">結束 <input type="date" id="ee"></label><button id="eadd">新增</button></div></div><h2>清單</h2>';
+  if(!S.events.length)return h+'<div class="card small">還沒有項目。</div>';
+  var l=S.events.map(function(e,i){return{e:e,i:i};}).sort(function(a,b){var ea=a.e.end&&dayDiff(a.e.end)<0,eb=b.e.end&&dayDiff(b.e.end)<0;return (ea?1:0)-(eb?1:0)||String(a.e.start||a.e.end||'9').localeCompare(String(b.e.start||b.e.end||'9'));});
+  h+='<div class="card">'+l.map(function(o){var e=o.e,p='events.'+o.i;
+    return '<div class="row" style="flex-wrap:wrap"><input data-p="'+p+'.name" value="'+esc(e.name)+'" style="flex:1;text-align:left;width:auto;min-width:120px"><select data-p="'+p+'.type">'+EVT.map(function(t){return '<option'+(e.type===t?' selected':'')+'>'+t+'</option>';}).join('')+'</select><input type="date" data-p="'+p+'.start" value="'+esc(e.start||'')+'" style="width:auto"><input type="date" data-p="'+p+'.end" value="'+esc(e.end||'')+'" style="width:auto"><span class="small" style="min-width:110px;text-align:right">'+evStatus(e)+'</span>'+delBtn(p)+'</div>';}).join('')+'</div>';
+  return h;
+}
+function bindEvents(){
+  document.getElementById('eadd').onclick=function(){
+    var n=document.getElementById('en').value.trim();if(!n)return;
+    S.events.push({id:uid(),name:n,type:document.getElementById('et').value,start:document.getElementById('es').value,end:document.getElementById('ee').value});save();render(true);
+  };
+}
+function bindCommon(){
+  [].forEach.call(document.querySelectorAll('[data-del]'),function(b){b.onclick=function(){
+    var p=b.getAttribute('data-del').split('.');S[p[0]].splice(parseInt(p[1],10),1);save();render(true);};});
+  [].forEach.call(document.querySelectorAll('[data-ck]'),function(c){c.onchange=function(){setPath(c.getAttribute('data-ck'),c.checked);save();render(true);};});
+}
+function bindGeneric(){
+  [].forEach.call(document.querySelectorAll('[data-p]'),function(el){el.onchange=function(){setPath(el.getAttribute('data-p'),el.value);save();render(true);};});
+}
 
 /* ---------- views ---------- */
 function vOverview(){
@@ -85,6 +341,7 @@ function vOverview(){
   }
   var top=A.map(function(a,i){return{a:a,e:E[i]};}).sort(function(x,y){return x.e.score-y.e.score;}).slice(0,5);
   h+='<h2>建置分數最低 5 位</h2><div class="card">'+top.map(function(x){return '<div class="row"><a href="#/agent/'+x.a.index+'" style="color:inherit">'+esc(x.a.name)+'</a><span>'+x.e.score+'</span></div>';}).join('')+'</div>';
+  h+=vNextOverview(E);
   h+='<p class="small">建置分數：音擎 30、驅動盤 Lv15 數量 40、技能 15、暴擊 15（滿分 100）。純異常或支援角色的暴擊項會偏低，僅供參考。</p>';
   return h;
 }
@@ -93,7 +350,7 @@ var sortK='score',sortD=1,filt={q:'',f:'',p:''};
 function vAgents(q){
   if(q){filt.f=q.f||'';filt.p=q.p||'';}
   var rows=S.agents.map(function(a){var e=evalAgent(a);return{a:a,e:e,
-    v:{index:a.index,name:a.name,mind:num(a.mindscape_lit),pri:PRI.indexOf(a.priority),score:e.score,
+    v:{bt:e.bt,rs:e.rs,index:a.index,name:a.name,mind:num(a.mindscape_lit),pri:PRI.indexOf(a.priority),score:e.score,
        eng:a.w_engine&&a.w_engine.name?lvn(a.w_engine.level):-1,c15:e.c15,sk:e.skAvg,cr:e.cr,cd:e.cd,atk:num(fin(a,'攻擊力')),flag:e.flag?1:0}};});
   rows=rows.filter(function(r){
     if(filt.q&&r.a.name.indexOf(filt.q)<0)return false;
@@ -104,13 +361,13 @@ function vAgents(q){
     if(filt.f==='disc0'&&!r.e.c0)return false;
     return true;});
   rows.sort(function(x,y){var a=x.v[sortK],b=y.v[sortK];if(typeof a==='string')return a.localeCompare(b,'zh-Hant')*sortD;return (a-b)*sortD||x.v.index-y.v.index;});
-  var cols=[['name','名稱'],['pri','優先度'],['mind','影畫'],['score','建置分'],['eng','音擎'],['c15','Lv15 盤'],['sk','技能均'],['cr','暴擊率'],['cd','暴擊傷害'],['atk','攻擊力'],['flag','狀態']];
+  var cols=[['name','名稱'],['pri','優先度'],['mind','影畫'],['score','通用建置分'],['bt','類型'],['rs','角色分'],['eng','音擎'],['c15','Lv15 盤'],['sk','技能均'],['cr','暴擊率'],['cd','暴擊傷害'],['atk','攻擊力'],['flag','狀態']];
   var h='<h1>代理人 <span class="small">'+rows.length+' / '+S.agents.length+'</span></h1><div class="tools">'+
    '<input id="fq" placeholder="搜尋名稱" value="'+esc(filt.q)+'">'+
    '<select id="ff"><option value="">全部</option>'+[['attn','需要注意'],['noeng','未裝備音擎'],['lowEng','音擎未滿 60'],['disc0','有 Lv0 驅動盤']].map(function(o){return '<option value="'+o[0]+'"'+(filt.f===o[0]?' selected':'')+'>'+o[1]+'</option>';}).join('')+'</select>'+
    '<select id="fp"><option value="">全部優先度</option>'+PRI.map(function(p){return '<option'+(filt.p===p?' selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'+
    '<div class="tw"><table><thead><tr>'+cols.map(function(c){return '<th data-k="'+c[0]+'">'+c[1]+(sortK===c[0]?(sortD>0?' ▲':' ▼'):'')+'</th>';}).join('')+'</tr></thead><tbody>'+
-   rows.map(function(r){var a=r.a,e=r.e;return '<tr><td><a href="#/agent/'+a.index+'">'+esc(a.name)+'</a></td><td>'+esc(a.priority)+'</td><td>'+r.v.mind+'</td><td><div style="display:flex;gap:6px;align-items:center">'+e.score+bar(e.score)+'</div></td><td>'+(r.v.eng<0?'無':'Lv'+r.v.eng)+'</td><td>'+e.c15+' / 6</td><td>'+e.skAvg.toFixed(1)+'</td><td>'+esc(fin(a,'暴擊率'))+'</td><td>'+esc(fin(a,'暴擊傷害'))+'</td><td>'+esc(fin(a,'攻擊力'))+'</td><td>'+(e.flag?'<span class="flag">需注意</span>':'')+'</td></tr>';}).join('')+'</tbody></table></div>';
+   rows.map(function(r){var a=r.a,e=r.e;return '<tr><td><a href="#/agent/'+a.index+'">'+esc(a.name)+'</a></td><td>'+esc(a.priority)+'</td><td>'+r.v.mind+'</td><td><div style="display:flex;gap:6px;align-items:center">'+e.score+bar(e.score)+'</div></td><td>'+esc(e.bt)+'</td><td>'+e.rs+'</td><td>'+(r.v.eng<0?'無':'Lv'+r.v.eng)+'</td><td>'+e.c15+' / 6</td><td>'+e.skAvg.toFixed(1)+'</td><td>'+esc(fin(a,'暴擊率'))+'</td><td>'+esc(fin(a,'暴擊傷害'))+'</td><td>'+esc(fin(a,'攻擊力'))+'</td><td>'+(e.flag?'<span class="flag">需注意</span>':'')+'</td></tr>';}).join('')+'</tbody></table></div>';
   return h;
 }
 function bindAgents(){
@@ -127,12 +384,13 @@ function vAgent(id){
   var e=evalAgent(a),ix=S.agents.indexOf(a),P='agents.'+ix;
   var h='<a class="back" href="#/agents">← 代理人列表</a><h1 style="margin-top:8px">'+esc(a.name)+' '+(e.flag?'<span class="flag">需注意</span>':'')+'</h1>';
   h+='<div class="grid2"><div class="card"><div class="row"><label>優先度</label><select data-p="'+P+'.priority">'+PRI.map(function(p){return '<option'+(a.priority===p?' selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'+
-   '<div class="row"><label>建置分數</label><span>'+e.score+'</span></div>'+bar(e.score)+
+   '<div class="row"><label>通用建置分數</label><span>'+e.score+'</span></div>'+bar(e.score)+
    '<div class="row"><label>名稱</label>'+inp(P+'.name',a.name)+'</div>'+
    '<div class="row"><label>等級</label>'+inp(P+'.level',a.level)+'</div>'+
    '<div class="row"><label>影畫（亮起數）</label>'+inp(P+'.mindscape_lit',a.mindscape_lit)+'</div>'+
    '<label class="small">備註</label><textarea data-p="'+P+'.note">'+esc(a.note||'')+'</textarea></div>';
   h+='<div class="card"><div class="small">缺口</div>'+(e.gaps.length?'<ul class="gap">'+e.gaps.map(function(g){return '<li>'+esc(g)+'</li>';}).join('')+'</ul>':'<div style="color:var(--g)">無明顯缺口</div>')+'</div></div>';
+  h+=vRoleCard(a,e,P);
   h+='<h2>技能</h2><div class="card">'+SK.map(function(k){return '<div class="row"><label>'+k+'</label>'+inp(P+'.skills.'+k,(a.skills||{})[k])+'</div>';}).join('')+'</div>';
   if(!a.w_engine)a.w_engine=null;
   var w=a.w_engine||{};var WP=P+'.w_engine';
@@ -178,6 +436,8 @@ function bindAgent(){
       setPath(p,v);save();render(true);
     };
   });
+  [].forEach.call(document.querySelectorAll('[data-apply]'),function(b){b.onclick=function(){var i=b.getAttribute('data-apply'),a=S.agents[i];a.next=evalAgent(a).next;save();render(true);};});
+  [].forEach.call(document.querySelectorAll('[data-clear]'),function(b){b.onclick=function(){S.agents[b.getAttribute('data-clear')].next='';save();render(true);};});
   [].forEach.call(document.querySelectorAll('[data-mk]'),function(el){
     el.onchange=function(){
       var DP=el.getAttribute('data-mk').split('.').slice(1);
@@ -199,7 +459,7 @@ function vTodo(){
     var l=list.filter(function(x){return x.a.priority===p;});
     if(!l.length)return;
     h+='<h2>'+p+'（'+l.length+'）</h2>';
-    l.forEach(function(x){h+='<div class="card" style="margin-bottom:8px"><div class="row"><a href="#/agent/'+x.a.index+'" style="color:inherit"><b>'+esc(x.a.name)+'</b></a><span>'+x.e.score+'</span></div><ul class="gap">'+x.e.gaps.map(function(g){return '<li>'+esc(g)+'</li>';}).join('')+'</ul></div>';});
+    l.forEach(function(x){h+='<div class="card" style="margin-bottom:8px"><div class="row"><a href="#/agent/'+x.a.index+'" style="color:inherit"><b>'+esc(x.a.name)+'</b></a><span>'+x.e.score+'</span></div><div class="small" style="margin-top:4px">下一步：'+esc(nextOf(x.a,x.e))+'</div><ul class="gap">'+x.e.gaps.map(function(g){return '<li>'+esc(g)+'</li>';}).join('')+'</ul></div>';});
   });
   var noM=S.agents.filter(function(a){return a.priority==='主力';}).length;
   if(!noM)h+='<p class="small">尚未指定任何主力。到代理人頁面把優先度改成「主力」，這裡就會優先顯示。</p>';
@@ -207,23 +467,25 @@ function vTodo(){
 }
 function vData(){
   return '<h1>資料</h1><div class="card"><p>資料只存在這個瀏覽器的 localStorage。換裝置或清除瀏覽器資料前，請先匯出備份。</p>'+
-   '<div class="tools"><button id="bx">匯出 JSON</button><button id="bi">匯入 JSON</button><button id="br">重設為初始資料</button></div><input type="file" id="fi" accept=".json,application/json" style="display:none"><div id="msg" class="small"></div></div>';
+   '<div class="tools"><button id="bx">匯出 JSON</button><button id="bi">匯入 JSON</button><button id="br">重設為初始資料</button></div><input type="file" id="fi" accept=".json,application/json" style="display:none"><div id="msg" class="small"></div><p class="small">上次匯出：'+(S.lastExport?tpStamp(Date.parse(S.lastExport))+'（台北）':'尚未匯出')+'。匯出內容包含代理人、電量、打卡、目標與日曆。</p></div>';
 }
 function bindData(){
   var m=document.getElementById('msg');
   document.getElementById('bx').onclick=function(){
+    S.lastExport=nowISO();save();
     var b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'});
     var u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='zzz-dashboard-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},1000);
+    m.textContent='已匯出。';var nt=document.querySelector('.note');if(nt)nt.remove();
   };
   var fi=document.getElementById('fi');
   document.getElementById('bi').onclick=function(){fi.click();};
   fi.onchange=function(){
     var f=fi.files[0];if(!f)return;var r=new FileReader();
     r.onload=function(){try{var o=JSON.parse(r.result);if(!o||!Array.isArray(o.agents))throw new Error('缺少 agents');
-      if(!confirm('匯入會覆蓋目前資料，確定嗎？'))return;S=o;save();m.textContent='匯入完成，共 '+o.agents.length+' 位代理人。';}catch(e){m.textContent='匯入失敗：'+e.message;}};
+      if(!confirm('匯入會覆蓋目前資料，確定嗎？'))return;S=ensure(o);save();m.textContent='匯入完成，共 '+o.agents.length+' 位代理人。';}catch(e){m.textContent='匯入失敗：'+e.message;}};
     r.readAsText(f);
   };
-  document.getElementById('br').onclick=function(){if(confirm('所有修改都會消失，確定重設為初始資料嗎？')){S=fresh();save();m.textContent='已重設。';}};
+  document.getElementById('br').onclick=function(){if(confirm('所有修改都會消失，確定重設為初始資料嗎？')){S=fresh();save();updateBattery();m.textContent='已重設。';}};
 }
 
 function parse(){
@@ -242,14 +504,23 @@ function render(keep){
   if(route==='agents')html=vAgents(q);
   else if(route==='agent')html=vAgent(parseInt(r.parts[1],10));
   else if(route==='todo')html=vTodo();
+  else if(route==='daily')html=vDaily();
+  else if(route==='goals')html=vGoals();
+  else if(route==='events')html=vEvents();
   else if(route==='data')html=vData();
   else html=vOverview();
-  app.innerHTML=html;
+  app.innerHTML=backupNotice()+html;
   if(route==='agents')bindAgents();
   if(route==='agent')bindAgent();
   if(route==='data')bindData();
+  if(route==='daily'){bindDaily();bindGeneric();}
+  if(route==='goals'){bindGoals();bindGeneric();}
+  if(route==='events'){bindEvents();bindGeneric();}
+  bindCommon();
+  updateBattery();
   window.scrollTo(0,keep?sy:0);
 }
 window.addEventListener('hashchange',function(){render(false);});
+initBattery();
 render(false);
 })();
