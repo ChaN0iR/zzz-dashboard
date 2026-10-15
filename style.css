@@ -71,7 +71,6 @@ input.wide{width:100%;margin-top:6px}
 .bbar i{display:block;height:100%;background:var(--a);width:0}
 .bblk{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:6px}
 .bl{color:var(--m);font-size:13px}
-.chip{padding:3px 12px;border-radius:14px}.chip.on{background:var(--t);color:var(--bg);border-color:var(--t)}
 .bblk input{width:110px;text-align:right}
 .bres{font-size:13px;color:var(--a);min-height:0;margin-top:3px}
 @media(max-width:700px){header{position:static}}

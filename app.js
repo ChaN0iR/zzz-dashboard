@@ -186,12 +186,6 @@ function updateBattery(){
   var ms=msTo(CAP,b.cur);
   el.innerHTML='電量 <b>'+b.cur+'</b>/'+CAP+'，'+(ms===0?'已滿':'滿電還要 '+dur2(ms)+'（約 '+hm(now+ms)+'）');
   document.getElementById('bfill').style.width=Math.min(100,b.cur/CAP*100)+'%';
-  var n=parseInt(S.batteryGoal,10);
-  var q=document.getElementById('bq');
-  if(n>=1&&n<=CAP){
-    var m1=msTo(n,b.cur);
-    q.textContent=m1===0?n+' 電量：已達到':'再 '+dur2(m1)+'會有 '+n+' 電量（約 '+hm(now+m1)+'）';
-  }else q.textContent='';
   var sp=document.getElementById('bsp'),sv=parseInt(S.batterySpend,10);
   if(sv>=1){
     var left=b.cur-sv;
@@ -227,28 +221,17 @@ function makeAlarm(T,out){
 function bf2(){return document.getElementById('bform');}
 function initBattery(){
   var el=document.getElementById('bat');if(!el)return;
-  var goals=[60,120,180,240];
   el.innerHTML='<div id="btap" class="btap" role="button" tabindex="0" aria-expanded="false" aria-label="點此更新電量"><div id="bmain" class="bmain"></div>'+
    '<div class="bbar"><i id="bfill"></i></div><div class="bhint">點此更新電量</div></div>'+
    '<form id="bform" class="bblk bform" hidden novalidate><label class="bl" for="bin">遊戲裡現在的電量</label> <input id="bin" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="240" placeholder="留空＝同步"> <button type="submit" class="mini" id="bset">確認</button> <button type="button" class="mini" id="bcx">取消</button></form>'+
    '<div id="bok" class="bres" aria-live="polite"></div>'+
-   '<div class="bblk"><span class="bl">什麼時候有</span> '+
-   goals.map(function(x){return '<button class="chip" data-g="'+x+'">'+x+'</button>';}).join('')+
-   '<input id="bgi" type="number" min="1" max="'+CAP+'" placeholder="自訂"></div>'+
-   '<div id="bq" class="bres"></div>'+
    '<div class="bblk"><button class="mini" id="bal" type="button">滿 <span id="balt">200</span> 時提醒我</button> <input id="bai" type="number" min="1" max="'+CAP+'" placeholder="200" aria-label="提醒目標電量"></div>'+
    '<div id="bar" class="bres" aria-live="polite"></div>'+
    '<div class="bblk"><span class="bl">預計用電</span> <input id="bsi" type="number" min="1" max="999" placeholder="用多少"> '+
    '<button class="mini" id="bsc">清除</button></div>'+
    '<div id="bsp" class="bres"></div>'+
       '<div id="bnote" class="small"></div>';
-  var gi=document.getElementById('bgi'),si=document.getElementById('bsi');
-  function chips(){[].forEach.call(el.querySelectorAll('.chip'),function(c){c.classList.toggle('on',parseInt(c.getAttribute('data-g'),10)===parseInt(S.batteryGoal,10));});}
-  function setG(v){v=parseInt(v,10);if(!(v>=1))return;S.batteryGoal=Math.min(CAP,v);save();chips();updateBattery();}
-  [].forEach.call(el.querySelectorAll('.chip'),function(c){c.onclick=function(){gi.value='';setG(c.getAttribute('data-g'));};});
-  gi.oninput=function(){setG(gi.value);};
-  if(!S.batteryGoal)S.batteryGoal=120;
-  if(goals.indexOf(parseInt(S.batteryGoal,10))<0)gi.value=S.batteryGoal;
+  var si=document.getElementById('bsi');
   si.value=S.batterySpend||'';
   si.oninput=function(){var v=parseInt(si.value,10);S.batterySpend=v>=1?v:0;save();updateBattery();};
   document.getElementById('bsc').onclick=function(){si.value='';S.batterySpend=0;save();updateBattery();};
@@ -273,7 +256,7 @@ function initBattery(){
   bt.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();tog(bf.hidden);}};
   document.getElementById('bcx').onclick=function(){bin.value='';bf.hidden=true;bt.setAttribute('aria-expanded','false');document.getElementById('bok').textContent='';};
   bf.onsubmit=function(e){e.preventDefault();setR();};
-  chips();updateBattery();
+  updateBattery();
   if(typeof setInterval==='function')setInterval(updateBattery,30000);
 }
 
