@@ -186,12 +186,6 @@ function updateBattery(){
   var ms=msTo(CAP,b.cur);
   el.innerHTML='電量 <b>'+b.cur+'</b>/'+CAP+'，'+(ms===0?'已滿':'滿電還要 '+dur2(ms)+'（約 '+hm(now+ms)+'）');
   document.getElementById('bfill').style.width=Math.min(100,b.cur/CAP*100)+'%';
-  var sp=document.getElementById('bsp'),sv=parseInt(S.batterySpend,10);
-  if(sv>=1){
-    var left=b.cur-sv;
-    if(left<0)sp.textContent='電量不足，目前只有 '+b.cur+'，還差 '+(-left)+'（約 '+hm(now+msTo(sv,b.cur))+' 才夠）';
-    else{var m2=msTo(CAP,left);sp.textContent='用掉 '+sv+' 後剩 '+left+'，'+(m2===0?'仍是滿的':dur2(m2)+'後回滿（約 '+hm(now+m2)+'）');}
-  }else sp.textContent='';
   var bn=document.getElementById('bnote');
   if(bn){var ad=new Date(b.at+8*3600000),p=function(n){return ('0'+n).slice(-2);};
    var stale=now-b.at>6*3600000;
@@ -227,14 +221,7 @@ function initBattery(){
    '<div id="bok" class="bres" aria-live="polite"></div>'+
    '<div class="bblk"><button class="mini" id="bal" type="button">滿 <span id="balt">200</span> 時提醒我</button> <input id="bai" type="number" min="1" max="'+CAP+'" placeholder="200" aria-label="提醒目標電量"></div>'+
    '<div id="bar" class="bres" aria-live="polite"></div>'+
-   '<div class="bblk"><span class="bl">預計用電</span> <input id="bsi" type="number" min="1" max="999" placeholder="用多少"> '+
-   '<button class="mini" id="bsc">清除</button></div>'+
-   '<div id="bsp" class="bres"></div>'+
-      '<div id="bnote" class="small"></div>';
-  var si=document.getElementById('bsi');
-  si.value=S.batterySpend||'';
-  si.oninput=function(){var v=parseInt(si.value,10);S.batterySpend=v>=1?v:0;save();updateBattery();};
-  document.getElementById('bsc').onclick=function(){si.value='';S.batterySpend=0;save();updateBattery();};
+   '<div id="bnote" class="small"></div>';
   var bai=document.getElementById('bai');
   bai.value=S.alarmTarget&&S.alarmTarget!==200?S.alarmTarget:'';
   function alT(){var v=parseInt(bai.value,10);return v>=1&&v<=CAP?v:200;}
