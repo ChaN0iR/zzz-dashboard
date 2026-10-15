@@ -82,3 +82,5 @@ input.wide{width:100%;margin-top:6px}
 .btap{cursor:pointer;border:1px solid var(--b);border-radius:6px;padding:6px 10px;-webkit-tap-highlight-color:transparent}.btap:active{background:var(--p2)}.btap:focus-visible{outline:2px solid var(--t);outline-offset:2px}
 .bhint{color:var(--m);font-size:12px;text-align:right}
 .bform[hidden]{display:none}
+
+.bico{vertical-align:-4px;margin-right:6px;color:var(--a)}.bsub{font-size:14px;color:var(--m)}
