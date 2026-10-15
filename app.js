@@ -195,7 +195,7 @@ function updateBattery(){
   var bn=document.getElementById('bnote');
   if(bn){var ad=new Date(b.at+8*3600000),p=function(n){return ('0'+n).slice(-2);};
    var stale=now-b.at>6*3600000;
-   bn.textContent='讀數 '+b.v+'，時間 '+p(ad.getUTCHours())+':'+p(ad.getUTCMinutes())+'（台北）。電量為估算，用掉後請更新讀數'+(stale?'；讀數已超過 6 小時':'');
+   bn.textContent='讀數 '+b.v+'，時間 '+p(ad.getUTCHours())+':'+p(ad.getUTCMinutes())+'（台北）。電量為估算，已自動同步 HoYoLAB（約每 30 分鐘），用掉後也可手動更新'+(stale?'；讀數已超過 6 小時':'');
    bn.style.color=stale?'#c0392b':'';bn.style.opacity=stale?'1':'.75';}
 }
 function icsStamp(ms){return new Date(ms).toISOString().replace(/[-:]/g,'').replace(/\.\d+/,'');}
@@ -252,6 +252,18 @@ function initBattery(){
   bf.onsubmit=function(e){e.preventDefault();setR();};
   updateBattery();
   if(typeof setInterval==='function')setInterval(updateBattery,30000);
+  pullRemote();
+  if(typeof setInterval==='function')setInterval(pullRemote,5*60000);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)pullRemote();});
+}
+function pullRemote(){
+  if(typeof fetch!=='function')return;
+  fetch('battery.json?t='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).then(function(j){
+    if(!j||!Number.isInteger(j.value)||j.value<0||j.value>CAP||(j.max&&j.max!==CAP))return;
+    var t=Date.parse(j.at||'');if(isNaN(t)||t>Date.now()+60000)return;
+    if(S.battery&&Date.parse(S.battery.at)>=t)return;
+    S.battery={value:j.value,at:new Date(t).toISOString()};save();updateBattery();
+  }).catch(function(){});
 }
 
 /* ---------- HoYoLAB sync via Scriptable ---------- */
