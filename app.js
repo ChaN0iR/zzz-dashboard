@@ -294,7 +294,8 @@ function handleSyncParams(){
 }
 
 /* ---------- open game ---------- */
-var DEFAULT_SHORTCUT='開絕區零';
+var DEFAULT_SHORTCUT='打開絕區零';
+try{if(localStorage.getItem('zzz-shortcut')==='開絕區零')localStorage.removeItem('zzz-shortcut');}catch(e){}
 var UNI_URL='https://oig.hoyoverse.com/zenlessglobal/';
 var STORE_URL='https://apps.apple.com/tw/app/zenless-zone-zero/id1606356401';
 function lsGet(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
@@ -335,7 +336,7 @@ function initGame(){
   document.getElementById('gset').onclick=function(){box.hidden=!box.hidden;};
   function helpHtml(){
     return '沒有開啟遊戲。請先建立捷徑：開啟捷徑 App → 新增捷徑 → 加入「打開 App」→ 選絕區零 → 命名為「'+esc(shortcutName())+'」。'+
-     '<div><button type="button" class="mini" id="guni">試通用連結</button> <a class="mini" href="'+STORE_URL+'">前往 App Store</a></div>';
+     '<div><a class="mini" href="https://www.icloud.com/shortcuts/7e11547991bd4962808b3396c724c63f">加入現成捷徑</a> <button type="button" class="mini" id="guni">試通用連結</button> <a class="mini" href="'+STORE_URL+'">前往 App Store</a></div>';
   }
   var launch=function(){
     msg.hidden=false;

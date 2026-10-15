@@ -15,7 +15,7 @@ const CONFIG = {
   REFRESH_MINUTES: 15,
   STALE_MINUTES: 45,            // 超過此時間沒成功連線，就標示「估算」
   OPEN_GAME_ON_TAP: false,      // true = 點小工具直接開啟遊戲（預設開儀表板）
-  SHORTCUT_NAME: "開絕區零",     // 你在「捷徑」App 建立的捷徑名稱（內容為「打開 App」→ 絕區零）
+  SHORTCUT_NAME: "打開絕區零",     // 你在「捷徑」App 建立的捷徑名稱（內容為「打開 App」→ 絕區零）
   GAME_URL: ""                  // 留空 = 用捷徑；也可填通用連結 https://oig.hoyoverse.com/zenlessglobal/ 或任何 scheme
 };
 // ================================================================
