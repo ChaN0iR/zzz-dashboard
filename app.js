@@ -294,37 +294,63 @@ function handleSyncParams(){
 }
 
 /* ---------- open game ---------- */
-var DEFAULT_SCHEME='zenlesszonezero://';
+var DEFAULT_SHORTCUT='開絕區零';
+var UNI_URL='https://oig.hoyoverse.com/zenlessglobal/';
 var STORE_URL='https://apps.apple.com/tw/app/zenless-zone-zero/id1606356401';
+function lsGet(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
+function lsSet(k,v){try{if(v)localStorage.setItem(k,v);else localStorage.removeItem(k);}catch(e){}}
+function gameMethod(){var m=lsGet('zzz-method');return m==='universal'||m==='custom'?m:'shortcut';}
+function shortcutName(){return lsGet('zzz-shortcut')||DEFAULT_SHORTCUT;}
+function gameUrl(){
+  var m=gameMethod();
+  if(m==='universal')return UNI_URL;
+  if(m==='custom'){var v=lsGet('zzz-custom').trim();if(v&&v.indexOf(':')<0)v+='://';return v;}
+  return 'shortcuts://run-shortcut?name='+encodeURIComponent(shortcutName());
+}
 function initGame(){
   var el=document.getElementById('game');if(!el)return;
   el.innerHTML='<button id="gbtn" class="gbtn">開啟遊戲</button> <button id="gset" class="mini">設定</button>'+
-   '<div id="gset-box" class="gbox" hidden><label class="small">URL scheme <input id="gsch" class="wide" value=""></label>'+
+   '<div id="gset-box" class="gbox" hidden>'+
+   '<div class="small">開啟遊戲的方式</div>'+
+   '<label class="small"><input type="radio" name="gm" value="shortcut"> 捷徑（預設，需先建立捷徑）</label> '+
+   '<label class="small"><input type="radio" name="gm" value="universal"> 通用連結（'+UNI_URL+'）</label> '+
+   '<label class="small"><input type="radio" name="gm" value="custom"> 自訂連結</label>'+
+   '<label class="small">捷徑名稱 <input id="gsc" class="wide" value=""></label>'+
+   '<label class="small">自訂連結（任何 scheme） <input id="gcu" class="wide" value="" placeholder="例如 myapp://"></label>'+
    '<label class="small">Scriptable 腳本名稱（同步電量用） <input id="gscr" class="wide" value=""></label>'+
-   '<div class="small">需與 Scriptable 內腳本名稱完全相同，預設「'+DEFAULT_SCRIPT+'」。</div>'+
-   '<div class="small">預設為推測值，未經驗證；若打不開請改成正確的 scheme。只在 iPhone / Android 有效，電腦版瀏覽器無法開啟遊戲。</div>'+
+   '<div class="small">腳本名稱需與 Scriptable 內完全相同，預設「'+DEFAULT_SCRIPT+'」。捷徑建立方式：開啟捷徑 App → 新增捷徑 → 加入「打開 App」→ 選絕區零 → 命名為「'+DEFAULT_SHORTCUT+'」。只在 iPhone / Android 有效。</div>'+
    '<button class="mini" id="gdef">還原預設</button></div><div id="gmsg" class="small" hidden></div>';
-  var inp=document.getElementById('gsch'),box=document.getElementById('gset-box'),msg=document.getElementById('gmsg');
-  function cur(){var v='';try{v=localStorage.getItem('zzz-scheme')||'';}catch(e){}return v||DEFAULT_SCHEME;}
-  inp.value=cur();
-  var scr=document.getElementById('gscr');scr.value=scriptName();
-  scr.onchange=function(){var v=scr.value.trim();try{if(v&&v!==DEFAULT_SCRIPT)localStorage.setItem('zzz-script',v);else localStorage.removeItem('zzz-script');}catch(e){}if(!v)scr.value=DEFAULT_SCRIPT;};
-  inp.onchange=function(){var v=inp.value.trim();try{localStorage.setItem('zzz-scheme',v);}catch(e){}if(!v)inp.value=DEFAULT_SCHEME;};
-  document.getElementById('gdef').onclick=function(){try{localStorage.removeItem('zzz-scheme');localStorage.removeItem('zzz-script');}catch(e){}inp.value=DEFAULT_SCHEME;scr.value=DEFAULT_SCRIPT;};
+  var box=document.getElementById('gset-box'),msg=document.getElementById('gmsg');
+  var sc=document.getElementById('gsc'),cu=document.getElementById('gcu'),scr=document.getElementById('gscr');
+  function fill(){
+    sc.value=shortcutName();cu.value=lsGet('zzz-custom');scr.value=scriptName();
+    [].forEach.call(box.querySelectorAll('input[name=gm]'),function(r){r.checked=r.value===gameMethod();});
+  }
+  fill();
+  [].forEach.call(box.querySelectorAll('input[name=gm]'),function(r){r.onchange=function(){lsSet('zzz-method',r.value==='shortcut'?'':r.value);};});
+  sc.onchange=function(){var v=sc.value.trim();lsSet('zzz-shortcut',v&&v!==DEFAULT_SHORTCUT?v:'');if(!v)sc.value=DEFAULT_SHORTCUT;};
+  cu.onchange=function(){lsSet('zzz-custom',cu.value.trim());};
+  scr.onchange=function(){var v=scr.value.trim();lsSet('zzz-script',v&&v!==DEFAULT_SCRIPT?v:'');if(!v)scr.value=DEFAULT_SCRIPT;};
+  document.getElementById('gdef').onclick=function(){['zzz-method','zzz-shortcut','zzz-custom','zzz-script','zzz-scheme'].forEach(function(k){lsSet(k,'');});fill();};
   document.getElementById('gset').onclick=function(){box.hidden=!box.hidden;};
+  function helpHtml(){
+    return '沒有開啟遊戲。請先建立捷徑：開啟捷徑 App → 新增捷徑 → 加入「打開 App」→ 選絕區零 → 命名為「'+esc(shortcutName())+'」。'+
+     '<div><button type="button" class="mini" id="guni">試通用連結</button> <a class="mini" href="'+STORE_URL+'">前往 App Store</a></div>';
+  }
   var launch=function(){
-    var mobile=/iPhone|iPad|iPod|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
     msg.hidden=false;
-    if(!mobile){msg.textContent='電腦上無法開啟遊戲，請在手機使用。';return;}
+    if(!isMobile()&&!/Android/.test(navigator.userAgent)){msg.textContent='電腦上無法開啟遊戲，請在手機使用。';return;}
+    var url=gameUrl();
+    if(!url){msg.textContent='尚未填寫自訂連結，請到設定填寫。';return;}
     var left=false,onL=function(){if(document.hidden)left=true;};
     document.addEventListener('visibilitychange',onL);window.addEventListener('pagehide',function(){left=true;},{once:true});
     msg.textContent='正在開啟遊戲…';
-    var sch=cur();if(sch.indexOf(':')<0)sch+='://';
-    window.location.href=sch;
+    window.location.href=url;
     setTimeout(function(){
       document.removeEventListener('visibilitychange',onL);
       if(left||document.hidden){msg.hidden=true;return;}
-      msg.innerHTML='沒有開啟遊戲。可能尚未安裝，或 scheme 不正確（見設定）。<a href="'+STORE_URL+'">前往 App Store 頁面</a>';
+      msg.innerHTML=helpHtml();
+      var g=document.getElementById('guni');if(g)g.onclick=function(){window.location.href=UNI_URL;};
     },1500);
   };
   document.getElementById('gbtn').onclick=launch;

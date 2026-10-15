@@ -84,10 +84,18 @@ iPhone 的 Safari 沒辦法直接看 cookie，所以最實際的做法是用電�
 - 沒驗證：實際連上 HoYoLAB 取電量。因為需要你的真實憑證，我沒有也不會取得。API 位址和標頭是依開源專案 genshin.py 的原始碼寫的，第一次在你手機上執行才能確認。如果出現錯誤代碼，把代碼告訴我就能調整。
 
 
-## 點小工具開啟遊戲（選用）
+## 開啟遊戲（選用）
 
-把腳本 CONFIG 的 `OPEN_GAME_ON_TAP` 改成 `true`，點小工具就會用 `GAME_SCHEME` 開啟遊戲（預設是開儀表板）。`zenlesszonezero://` 是推測值，尚未驗證；打不開就改成正確的 scheme。儀表板右上角的「開啟遊戲」按鈕使用同一個 scheme，可在其「設定」修改。
+絕區零沒有查得到的官方 URL scheme（先前用的 `zenlesszonezero://` 是推測，已移除）。已確認的資料：App 的 bundle id 是 `com.HoYoverse.Nap`，通用連結是 https://oig.hoyoverse.com/zenlessglobal/（已安裝會開 App，沒裝會到 App Store）。
 
+最穩的做法是建立 iOS 捷徑：
+1. 開啟「捷徑」App → 新增捷徑。
+2. 加入動作「打開 App」→ 選「絕區零」。
+3. 命名為「開絕區零」。
+
+儀表板的 LOGO 與右上「開啟遊戲」預設會執行 `shortcuts://run-shortcut?name=開絕區零`。到儀表板「設定」可改捷徑名稱，或改用「通用連結」「自訂連結」。若沒開成功，1.5 秒後會顯示建立捷徑的步驟與「試通用連結」「前往 App Store」按鈕。
+
+小工具：把腳本 CONFIG 的 `OPEN_GAME_ON_TAP` 改成 `true`，點小工具就會開遊戲（預設是開儀表板）。預設用 `SHORTCUT_NAME` 的捷徑；`GAME_URL` 填了就改用該連結。
 
 ## 儀表板「留空更新」同步真實電量
 

@@ -15,7 +15,8 @@ const CONFIG = {
   REFRESH_MINUTES: 15,
   STALE_MINUTES: 45,            // 超過此時間沒成功連線，就標示「估算」
   OPEN_GAME_ON_TAP: false,      // true = 點小工具直接開啟遊戲（預設開儀表板）
-  GAME_SCHEME: "zenlesszonezero://" // 推測值，未經驗證；打不開請改成正確的 scheme
+  SHORTCUT_NAME: "開絕區零",     // 你在「捷徑」App 建立的捷徑名稱（內容為「打開 App」→ 絕區零）
+  GAME_URL: ""                  // 留空 = 用捷徑；也可填通用連結 https://oig.hoyoverse.com/zenlessglobal/ 或任何 scheme
 };
 // ================================================================
 
@@ -180,7 +181,7 @@ function buildWidget(state) {
         LINE = new Color("#23262c"), ACC = new Color("#e8d44d"), WARN = new Color("#e5735a");
   const w = new ListWidget();
   w.backgroundColor = BG;
-  w.url = CONFIG.OPEN_GAME_ON_TAP ? CONFIG.GAME_SCHEME : CONFIG.DASHBOARD_URL;
+  w.url = CONFIG.OPEN_GAME_ON_TAP ? (CONFIG.GAME_URL || "shortcuts://run-shortcut?name=" + encodeURIComponent(CONFIG.SHORTCUT_NAME)) : CONFIG.DASHBOARD_URL;
   w.refreshAfterDate = new Date(Date.now() + CONFIG.REFRESH_MINUTES * 60 * 1000);
   const small = config.widgetFamily === "small";
   w.setPadding(small ? 14 : 16, 16, small ? 14 : 16, 16);
