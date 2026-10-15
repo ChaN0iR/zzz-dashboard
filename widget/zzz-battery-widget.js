@@ -1,6 +1,8 @@
 // 絕區零 電量小工具 (Scriptable)
 // 顯示：目前電量 / 240、滿電倒數，兩次更新之間每 6 分鐘 +1 估算。
 // 點擊小工具會開啟儀表板。
+// 儀表板「遊戲裡現在的電量」留空按「更新」，會用 scriptable:///run/...?sync=1 呼叫本腳本，
+// 取得真實電量後再用 Safari 開回儀表板（只允許回到下方 DASHBOARD_URL）。
 // 憑證只存在 iOS 鑰匙圈 (Keychain)，此檔案內不含任何帳號資料，可安心備份。
 
 // ===================== CONFIG（只需要改這裡）=====================
@@ -260,7 +262,49 @@ function buildWidget(state) {
 }
 
 // ---------- 主流程 ----------
+function pad2(n) { return ("0" + n).slice(-2); }
+// 以台北時間 (+08:00) 輸出 ISO 時間字串
+function isoTaipei(ms) {
+  const d = new Date(ms + 8 * 3600000);
+  return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1) + "-" + pad2(d.getUTCDate()) + "T" +
+    pad2(d.getUTCHours()) + ":" + pad2(d.getUTCMinutes()) + ":" + pad2(d.getUTCSeconds()) + "+08:00";
+}
+function errCode(e) {
+  if (e && (e.retcode === -100 || e.retcode === 10001)) return "auth";
+  if (e && e.retcode === 10102) return "note";
+  if (e && (e.retcode === 1034 || e.retcode === 5003 || e.retcode === 10035)) return "verify";
+  if (e && e.retcode) return "unknown";
+  if (e && e.message === "回傳格式不符") return "format";
+  return "network";
+}
+// 由儀表板透過 URL scheme 呼叫：?sync=1&return=<儀表板網址>
+async function runSync(q) {
+  const ret = String(q.return || "");
+  const okReturn = ret.indexOf(CONFIG.DASHBOARD_URL) === 0 && ret.indexOf("#") < 0;
+  const base = okReturn ? ret.split("?")[0] : CONFIG.DASHBOARD_URL;
+  let code = null;
+  if (!hasCreds() || CONFIG.UID === "YOUR_ZZZ_UID" || !/^\d+$/.test(CONFIG.UID)) code = "setup";
+  else {
+    try {
+      const fresh = await fetchBattery();
+      saveCache(fresh);
+      const url = base + "?battery=" + fresh.current + "&at=" + encodeURIComponent(isoTaipei(fresh.ts)) + "&max=" + fresh.max;
+      if (okReturn) { Safari.open(url); Script.complete(); return; }
+      const a = new Alert(); a.title = "目前電量 " + fresh.current + "/" + fresh.max;
+      a.message = "回傳網址不符，未自動開啟儀表板。"; a.addAction("好"); await a.presentAlert();
+      Script.complete(); return;
+    } catch (e) { code = errCode(e); }
+  }
+  if (okReturn) { Safari.open(base + "?batteryError=" + code); }
+  else {
+    const a = new Alert(); a.title = "同步失敗"; a.message = "錯誤代碼：" + code; a.addAction("好"); await a.presentAlert();
+  }
+  Script.complete();
+}
+
 async function main() {
+  const q = args.queryParameters || {};
+  if (q.sync === "1") { await runSync(q); return; }
   const inApp = config.runsInApp;
 
   if (inApp) {

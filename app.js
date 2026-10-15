@@ -232,6 +232,7 @@ function initBattery(){
   var bin=document.getElementById('bin');
   function setR(){
     var ok=document.getElementById('bok'),raw=String(bin.value).trim();
+    if(raw===''){syncHoyolab(ok);return;}
     var v=Number(raw);
     if(raw===''||!/^\d+$/.test(raw)||v<0||v>CAP){ok.textContent='請輸入 0 到 '+CAP+' 的整數';ok.style.color='#d9644a';return;}
     S.battery={value:v,at:nowISO()};save();bin.value='';updateBattery();
@@ -243,6 +244,55 @@ function initBattery(){
   if(typeof setInterval==='function')setInterval(updateBattery,30000);
 }
 
+/* ---------- HoYoLAB sync via Scriptable ---------- */
+var DEFAULT_SCRIPT='絕區零電量';
+var BERR={auth:'HoYoLAB 憑證失效，請在 Scriptable 重新設定憑證',note:'請在 HoYoLAB App 開啟絕區零的即時便箋',verify:'HoYoLAB 要求驗證，請稍後再試',network:'連線 HoYoLAB 失敗，請檢查網路後再試',setup:'Scriptable 尚未設定憑證或 UID，請先在 Scriptable 內執行腳本',format:'HoYoLAB 回傳格式不符',unknown:'同步失敗，請改為手動輸入'};
+function scriptName(){var v='';try{v=localStorage.getItem('zzz-script')||'';}catch(e){}return v||DEFAULT_SCRIPT;}
+function isMobile(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);}
+function syncUrl(){
+  var ret=location.origin+location.pathname;
+  return 'scriptable:///run/'+encodeURIComponent(scriptName())+'?sync=1&return='+encodeURIComponent(ret);
+}
+function syncHoyolab(ok){
+  ok.style.color='';
+  if(!isMobile()){ok.textContent='電腦上無法同步，請手動輸入';ok.style.color='#d9644a';return;}
+  ok.textContent='正在向 HoYoLAB 同步…';
+  var left=false,onL=function(){if(document.hidden)left=true;};
+  document.addEventListener('visibilitychange',onL);
+  window.addEventListener('pagehide',function(){left=true;},{once:true});
+  window.location.href=syncUrl();
+  setTimeout(function(){
+    document.removeEventListener('visibilitychange',onL);
+    if(left||document.hidden)return;
+    ok.textContent='沒有切換到 Scriptable，請確認已安裝並已建立腳本';ok.style.color='#d9644a';
+  },1500);
+}
+function handleSyncParams(){
+  var qs=location.search;if(!qs||qs.length<2)return;
+  var p;try{p=new URLSearchParams(qs);}catch(e){return;}
+  var hasB=p.has('battery'),hasE=p.has('batteryError');
+  if(!hasB&&!hasE)return;
+  var msg='',good=false;
+  if(hasE){var c=p.get('batteryError');msg=BERR[c]||BERR.unknown;}
+  else{
+    var raw=p.get('battery'),at=p.get('at'),t=Date.parse(at||'');
+    var mx=p.get('max');
+    if(!/^\d{1,3}$/.test(raw||'')||Number(raw)>CAP)msg='同步資料無效：電量不在 0 到 '+CAP+' 之間';
+    else if(mx!==null&&Number(mx)!==CAP)msg='同步資料無效：電量上限不符';
+    else if(!/^\d{4}-\d\d-\d\dT/.test(at||'')||isNaN(t))msg='同步資料無效：時間格式錯誤';
+    else if(t>Date.now()+60000)msg='同步資料無效：時間在未來';
+    else{
+      var v=Number(raw);
+      S.battery={value:v,at:new Date(t).toISOString()};save();
+      msg='已從 HoYoLAB 同步為 '+v+'/'+CAP;good=true;
+    }
+  }
+  try{history.replaceState(null,'',location.pathname+location.hash);}catch(e){}
+  var ok=document.getElementById('bok');
+  if(ok){ok.textContent=msg;ok.style.color=good?'#7fb08a':'#d9644a';}
+  updateBattery();
+}
+
 /* ---------- open game ---------- */
 var DEFAULT_SCHEME='zenlesszonezero://';
 var STORE_URL='https://apps.apple.com/tw/app/zenless-zone-zero/id1606356401';
@@ -250,13 +300,17 @@ function initGame(){
   var el=document.getElementById('game');if(!el)return;
   el.innerHTML='<button id="gbtn" class="gbtn">開啟遊戲</button> <button id="gset" class="mini">設定</button>'+
    '<div id="gset-box" class="gbox" hidden><label class="small">URL scheme <input id="gsch" class="wide" value=""></label>'+
+   '<label class="small">Scriptable 腳本名稱（同步電量用） <input id="gscr" class="wide" value=""></label>'+
+   '<div class="small">需與 Scriptable 內腳本名稱完全相同，預設「'+DEFAULT_SCRIPT+'」。</div>'+
    '<div class="small">預設為推測值，未經驗證；若打不開請改成正確的 scheme。只在 iPhone / Android 有效，電腦版瀏覽器無法開啟遊戲。</div>'+
    '<button class="mini" id="gdef">還原預設</button></div><div id="gmsg" class="small" hidden></div>';
   var inp=document.getElementById('gsch'),box=document.getElementById('gset-box'),msg=document.getElementById('gmsg');
   function cur(){var v='';try{v=localStorage.getItem('zzz-scheme')||'';}catch(e){}return v||DEFAULT_SCHEME;}
   inp.value=cur();
+  var scr=document.getElementById('gscr');scr.value=scriptName();
+  scr.onchange=function(){var v=scr.value.trim();try{if(v&&v!==DEFAULT_SCRIPT)localStorage.setItem('zzz-script',v);else localStorage.removeItem('zzz-script');}catch(e){}if(!v)scr.value=DEFAULT_SCRIPT;};
   inp.onchange=function(){var v=inp.value.trim();try{localStorage.setItem('zzz-scheme',v);}catch(e){}if(!v)inp.value=DEFAULT_SCHEME;};
-  document.getElementById('gdef').onclick=function(){try{localStorage.removeItem('zzz-scheme');}catch(e){}inp.value=DEFAULT_SCHEME;};
+  document.getElementById('gdef').onclick=function(){try{localStorage.removeItem('zzz-scheme');localStorage.removeItem('zzz-script');}catch(e){}inp.value=DEFAULT_SCHEME;scr.value=DEFAULT_SCRIPT;};
   document.getElementById('gset').onclick=function(){box.hidden=!box.hidden;};
   var launch=function(){
     var mobile=/iPhone|iPad|iPod|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
@@ -599,4 +653,5 @@ window.addEventListener('hashchange',function(){render(false);});
 initBattery();
 initGame();
 render(false);
+handleSyncParams();
 })();

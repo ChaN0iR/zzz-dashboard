@@ -18,7 +18,7 @@
 1. 在電腦或手機打開：https://raw.githubusercontent.com/ChaN0iR/zzz-dashboard/main/widget/zzz-battery-widget.js
 2. 全選、複製整份程式碼。
 3. 打開 Scriptable，點右上角「+」新增腳本，貼上全部內容。
-4. 點左上角名稱，改成「ZZZ 電量」，點完成。
+4. 點左上角名稱，改成「絕區零電量」，點完成。
 5. 找到最上方的 `CONFIG`，把 `UID: "YOUR_ZZZ_UID"` 改成你的絕區零 UID（只改引號裡的數字，保留引號）。
 
 ## 步驟 3：取得 ltuid_v2 和 ltoken_v2（用電腦）
@@ -58,7 +58,7 @@ iPhone 的 Safari 沒辦法直接看 cookie，所以最實際的做法是用電�
 
 1. 長按 iPhone 主畫面空白處，點左上角「+」。
 2. 搜尋並選「Scriptable」，選小型或中型，按「加入小工具」。
-3. 長按該小工具 → 編輯小工具，「Script」選「ZZZ 電量」。其他選項保持預設。
+3. 長按該小工具 → 編輯小工具，「Script」選「絕區零電量」。其他選項保持預設。
 4. 點小工具會打開儀表板：https://chan0ir.github.io/zzz-dashboard/
 
 小工具大約每 15 分鐘更新一次，但 iOS 有最後決定權，實際可能更久。更新之間會用每 6 分鐘 +1 估算，右上角會顯示「即時」或「估算」。
@@ -87,3 +87,26 @@ iPhone 的 Safari 沒辦法直接看 cookie，所以最實際的做法是用電�
 ## 點小工具開啟遊戲（選用）
 
 把腳本 CONFIG 的 `OPEN_GAME_ON_TAP` 改成 `true`，點小工具就會用 `GAME_SCHEME` 開啟遊戲（預設是開儀表板）。`zenlesszonezero://` 是推測值，尚未驗證；打不開就改成正確的 scheme。儀表板右上角的「開啟遊戲」按鈕使用同一個 scheme，可在其「設定」修改。
+
+
+## 儀表板「留空更新」同步真實電量
+
+儀表板最上方「遊戲裡現在的電量」留空、按「更新」，會切到 Scriptable 向 HoYoLAB 讀取真實電量，完成後自動回到儀表板並顯示「已從 HoYoLAB 同步為 N/240」。只能在 iPhone 使用，電腦會提示手動輸入。
+
+### 你需要重新複製一次腳本（舊版沒有這個功能）
+
+1. 在 iPhone 的 Safari 打開：https://raw.githubusercontent.com/ChaN0iR/zzz-dashboard/main/widget/zzz-battery-widget.js
+2. 長按頁面文字，選「全選」，再按「拷貝」。
+3. 打開 Scriptable，點開原本的「絕區零電量」腳本。
+4. 在程式碼區長按，選「全選」，再選「貼上」，蓋掉舊的內容。
+5. 找到最上方的 `YOUR_ZZZ_UID`，再填一次你的 UID（因為貼上的是空白版本），引號要留著。
+6. 腳本名稱保持「絕區零電量」不要改。如果你改了名字，到儀表板右上「設定」的「Scriptable 腳本名稱」填一樣的名稱。
+
+### 運作方式與安全
+
+- 儀表板用 `scriptable:///run/絕區零電量?sync=1&return=...` 開啟腳本；腳本用鑰匙圈裡的憑證讀取電量，再用 Safari 開 `儀表板網址?battery=數字&at=時間&max=240`。憑證不會離開手機，網址裡只有電量與時間。
+- 腳本只會回到 `https://chan0ir.github.io/zzz-dashboard/` 開頭的網址。
+- 失敗時回到 `?batteryError=代碼`，儀表板會顯示中文原因（憑證失效、需開啟即時便箋、需要驗證、連線失敗等）。
+- 儀表板只接受 0 到 240 的整數，且時間不能比現在晚超過 1 分鐘，不符就拒絕並顯示原因。
+- 同步時 Scriptable 會短暫跳出來、再跳回 Safari，這是 iOS 的正常行為。
+- 尚未在真實 iPhone 驗證。若切到 Scriptable 後停住或沒有跳回，請截圖給我。
