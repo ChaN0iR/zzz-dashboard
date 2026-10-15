@@ -103,3 +103,5 @@ input.wide{width:100%;margin-top:6px}
 .phxi input{width:100%;box-sizing:border-box;text-align:right}
 .phxf{margin-top:12px}
 @media(max-width:700px){.phx{margin:8px 10px 0}.phxi label{flex-basis:45%}}
+
+.phxi label .phxn{display:flex;align-items:center;gap:4px;line-height:1.2}.phxi label img{flex:none;object-fit:contain}.phxi label .phxt{opacity:.7}

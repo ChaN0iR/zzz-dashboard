@@ -706,9 +706,10 @@ function bindData(){
 
 /* ---------- TEMPORARY: Phoenix pre-farm tracker (remove this block, #phx, and .phx css to delete) ---------- */
 var PHX=[
- {k:'seal',t:'突破',n:'異常認證章',target:370,tiers:[['初階異常認證章',1],['高階異常認證章',3],['掌控者認證章',9]]},
- {k:'chip',t:'技能',n:'引燃晶片',target:2500,tiers:[['基礎引燃晶片',1],['進階引燃晶片',3],['特化引燃晶片',9]]},
- {k:'feather',t:'高維資料',n:'喋血穢羽',target:60,tiers:[['喋血穢羽',1]]}
+ {k:'seal',t:'突破',n:'異常認證章',target:370,tiers:[['初階異常認證章',1,4,'seal1'],['高階異常認證章',3,32,'seal2'],['掌控者認證章',9,30,'seal3']]},
+ {k:'chip',t:'技能',n:'引燃晶片',target:2500,tiers:[['基礎引燃晶片',1,25,'chip1'],['進階引燃晶片',3,75,'chip2'],['特化引燃晶片',9,250,'chip3']]},
+ {k:'feather',t:'高維資料',n:'喋血穢羽',target:60,tiers:[['喋血穢羽',1,60,'feather']]},
+ {k:'core',t:'武器',n:'贋造離核',target:9,tiers:[['贋造離核',1,9,'core']]}
 ];
 var PHX_DATE='2026-10-21';
 function phxS(){if(!S.phoenix||typeof S.phoenix!=='object')S.phoenix={};var p=S.phoenix;if(!p.c||typeof p.c!=='object')p.c={};return p;}
@@ -729,10 +730,10 @@ function phxRender(){
     h+=bar(all);
     PHX.forEach(function(g,i){
       var pc=Math.min(100,Math.round(eq[i]/g.target*100)),cur=p.c[g.k]||[];
-      h+='<div class="phxg"><div class="row"><b>'+g.t+'：'+g.n+'</b><span class="small">折算 '+fmt(eq[i])+' / '+fmt(g.target)+(g.tiers.length>1?' 初階等值':' 枚')+'　'+pc+'%</span></div>'+bar(pc)+'<div class="phxi">'+
-        g.tiers.map(function(t,j){return '<label class="small">'+t[0]+(g.tiers.length>1?'（×'+t[1]+'）':'')+'<input type="number" inputmode="numeric" min="0" step="1" data-g="'+g.k+'" data-i="'+j+'" value="'+esc(cur[j]||'')+'" placeholder="0"></label>';}).join('')+'</div></div>';
+      h+='<div class="phxg"><div class="row"><b>'+g.t+'：'+g.n+'</b><span class="small">折算 '+fmt(eq[i])+' / '+fmt(g.target)+(g.tiers.length>1?' 初階等值':' 個')+'　'+pc+'%</span></div>'+bar(pc)+'<div class="phxi">'+
+        g.tiers.map(function(t,j){return '<label class="small"><span class="phxn"><img src="assets/mats/'+t[3]+'.png?v=20261015190000" alt="" width="28" height="28" loading="lazy">'+t[0]+(g.tiers.length>1?'（×'+t[1]+'）':'')+'</span><span class="phxt">目標 '+t[2]+'</span><input type="number" inputmode="numeric" min="0" step="1" data-g="'+g.k+'" data-i="'+j+'" value="'+esc(cur[j]||'')+'" placeholder="0"></label>';}).join('')+'</div></div>';
     });
-    h+='<div class="phxf"><button class="mini" id="phxc">清除</button> <span class="small">折算：3 個低階 = 1 個高階，掌控者 = 9 個初階（比例與目標 370、2,500、60 取自參考頁，未經官方核實）。</span></div>';
+    h+='<div class="phxf"><button class="mini" id="phxc">清除</button> <span class="small">折算：3 個低階 = 1 個高階，掌控者 = 9 個初階。各項目標（4、32、30／25、75、250／9／60）取自參考圖，與總目標 370、2,500 吻合，未經官方核實。</span></div>';
   }
   el.innerHTML=h;
   var t=document.getElementById('phxt');if(t)t.onclick=function(){p.collapsed=!p.collapsed;save();phxRender();};
@@ -746,7 +747,7 @@ function phxLive(){/* update numbers without losing input focus */
   PHX.forEach(function(g,i){tot+=g.target;sum+=Math.min(eq[i],g.target);});
   var all=Math.round(sum/tot*100);
   var gs=el.querySelectorAll('.phxg');
-  PHX.forEach(function(g,i){var pc=Math.min(100,Math.round(eq[i]/g.target*100));var b=gs[i].querySelector('.bar');b.className='bar '+(pc<50?'low':pc<75?'mid':'hi');b.firstChild.style.width=pc+'%';gs[i].querySelector('.row .small').textContent='折算 '+fmt(eq[i])+' / '+fmt(g.target)+(g.tiers.length>1?' 初階等值':' 枚')+'　'+pc+'%';});
+  PHX.forEach(function(g,i){var pc=Math.min(100,Math.round(eq[i]/g.target*100));var b=gs[i].querySelector('.bar');b.className='bar '+(pc<50?'low':pc<75?'mid':'hi');b.firstChild.style.width=pc+'%';gs[i].querySelector('.row .small').textContent='折算 '+fmt(eq[i])+' / '+fmt(g.target)+(g.tiers.length>1?' 初階等值':' 個')+'　'+pc+'%';});
   var top=el.querySelector('.phxh .small'),d=dayDiff(PHX_DATE);top.textContent='暫時欄位 · 總進度 '+all+'% · '+(d>0?'開放 10/21，還有 '+d+' 天':d===0?'今天 10/21 開放':'10/21 已開放');
   var ob=el.querySelector(':scope > .bar');ob.className='bar '+(all<50?'low':all<75?'mid':'hi');ob.firstChild.style.width=all+'%';
 }
