@@ -84,3 +84,10 @@ input.wide{width:100%;margin-top:6px}
 .bform[hidden]{display:none}
 
 .bico{vertical-align:-4px;margin-right:6px;color:var(--a)}.bsub{font-size:14px;color:var(--m)}
+
+.brow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.brow .bmain{flex:1;min-width:0}
+.brow .game{margin-left:0;flex:none;flex-direction:column;align-items:flex-end;flex-wrap:nowrap;gap:4px;cursor:default}
+.brow .gbox{top:100%;margin-top:4px;text-align:left}
+.brow #gmsg{max-width:150px;font-size:12px;flex-basis:auto}
+@media(max-width:700px){.brow .gbtn{padding:5px 10px;font-size:14px}}

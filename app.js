@@ -190,7 +190,7 @@ function updateBattery(){
   var el=document.getElementById('bmain');if(!el||!S.battery)return;
   var now=Date.now(),b=batNow(now);
   var ms=msTo(CAP,b.cur);
-  el.innerHTML=BAT_SVG+'電量 <b>'+b.cur+'</b>/'+CAP+'，<br><span class="bsub">'+(ms===0?'已滿':'滿電還要 '+dur2(ms)+'（約 '+dayPart(now+ms)+'）')+'</span>';
+  el.innerHTML=BAT_SVG+'電量 <b>'+b.cur+'</b>/'+CAP+'<br><span class="bsub">'+(ms===0?'已滿':'滿電還要 '+dur2(ms)+'（約 '+dayPart(now+ms)+'）')+'</span>';
   document.getElementById('bfill').style.width=Math.min(100,b.cur/CAP*100)+'%';
   var bn=document.getElementById('bnote');
   if(bn){var ad=new Date(b.at+8*3600000),p=function(n){return ('0'+n).slice(-2);};
@@ -221,7 +221,7 @@ function makeAlarm(T,out){
 function bf2(){return document.getElementById('bform');}
 function initBattery(){
   var el=document.getElementById('bat');if(!el)return;
-  el.innerHTML='<div id="btap" class="btap" role="button" tabindex="0" aria-expanded="false" aria-label="點此更新電量"><div id="bmain" class="bmain"></div>'+
+  el.innerHTML='<div id="btap" class="btap" role="button" tabindex="0" aria-expanded="false" aria-label="點此更新電量"><div class="brow"><div id="bmain" class="bmain"></div><div id="game" class="game"></div></div>'+
    '<div class="bbar"><i id="bfill"></i></div><div class="bhint">點此更新電量</div></div>'+
    '<form id="bform" class="bblk bform" hidden novalidate><label class="bl" for="bin">遊戲裡現在的電量</label> <input id="bin" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="240" placeholder="留空＝同步"> <button type="submit" class="mini" id="bset">確認</button> <button type="button" class="mini" id="bcx">取消</button></form>'+
    '<div id="bok" class="bres" aria-live="polite"></div>'+
@@ -245,6 +245,7 @@ function initBattery(){
   }
   var bf=document.getElementById('bform'),bt=document.getElementById('btap');
   function tog(open){bf.hidden=!open;bt.setAttribute('aria-expanded',open?'true':'false');if(open){document.getElementById('bok').textContent='留空直接按確認＝向 HoYoLAB 同步；輸入 0 到 '+CAP+' 則直接儲存';document.getElementById('bok').style.color='';bin.focus();}}
+  var gw=document.getElementById('game');['click','keydown','keyup','touchstart'].forEach(function(t){gw.addEventListener(t,function(e){e.stopPropagation();});});
   bt.onclick=function(){tog(bf.hidden);};
   bt.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();tog(bf.hidden);}};
   document.getElementById('bcx').onclick=function(){bin.value='';bf.hidden=true;bt.setAttribute('aria-expanded','false');document.getElementById('bok').textContent='';};
