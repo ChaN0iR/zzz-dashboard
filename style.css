@@ -75,3 +75,5 @@ input.wide{width:100%;margin-top:6px}
 .bblk input{width:110px;text-align:right}
 .bres{font-size:13px;color:var(--a);min-height:0;margin-top:3px}
 @media(max-width:700px){header{position:static}}
+.brand{display:flex;align-items:center;gap:8px;color:var(--t);text-decoration:none;letter-spacing:1px}.brand img{height:30px;width:auto;display:block}
+@media(max-width:700px){.brand img{height:26px}.brand{font-size:15px}}
