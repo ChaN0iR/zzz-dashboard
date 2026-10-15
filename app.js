@@ -204,11 +204,14 @@ function updateBattery(){
    bn.textContent='讀數 '+b.v+'，時間 '+p(ad.getUTCHours())+':'+p(ad.getUTCMinutes())+'（台北）。電量為估算，用掉後請更新讀數'+(stale?'；讀數已超過 6 小時':'');
    bn.style.color=stale?'#c0392b':'';bn.style.opacity=stale?'1':'.75';}
 }
+function bf2(){return document.getElementById('bform');}
 function initBattery(){
   var el=document.getElementById('bat');if(!el)return;
   var goals=[60,120,180,240];
-  el.innerHTML='<div id="bmain" class="bmain"></div>'+
-   '<div class="bbar"><i id="bfill"></i></div>'+
+  el.innerHTML='<div id="btap" class="btap" role="button" tabindex="0" aria-expanded="false" aria-label="點此更新電量"><div id="bmain" class="bmain"></div>'+
+   '<div class="bbar"><i id="bfill"></i></div><div class="bhint">點此更新電量</div></div>'+
+   '<form id="bform" class="bblk bform" hidden novalidate><label class="bl" for="bin">遊戲裡現在的電量</label> <input id="bin" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="240" placeholder="留空＝同步"> <button type="submit" class="mini" id="bset">確認</button> <button type="button" class="mini" id="bcx">取消</button></form>'+
+   '<div id="bok" class="bres" aria-live="polite"></div>'+
    '<div class="bblk"><span class="bl">什麼時候有</span> '+
    goals.map(function(x){return '<button class="chip" data-g="'+x+'">'+x+'</button>';}).join('')+
    '<input id="bgi" type="number" min="1" max="'+CAP+'" placeholder="自訂"></div>'+
@@ -216,9 +219,7 @@ function initBattery(){
    '<div class="bblk"><span class="bl">預計用電</span> <input id="bsi" type="number" min="1" max="999" placeholder="用多少"> '+
    '<button class="mini" id="bsc">清除</button></div>'+
    '<div id="bsp" class="bres"></div>'+
-   '<div class="bblk"><label class="bl" for="bin">遊戲裡現在的電量</label> <input id="bin" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="240" placeholder="輸入遊戲內的數字"> <button type="button" class="mini" id="bset">更新</button></div>'+
-   '<div id="bok" class="bres" aria-live="polite"></div>'+
-   '<div id="bnote" class="small"></div>';
+      '<div id="bnote" class="small"></div>';
   var gi=document.getElementById('bgi'),si=document.getElementById('bsi');
   function chips(){[].forEach.call(el.querySelectorAll('.chip'),function(c){c.classList.toggle('on',parseInt(c.getAttribute('data-g'),10)===parseInt(S.batteryGoal,10));});}
   function setG(v){v=parseInt(v,10);if(!(v>=1))return;S.batteryGoal=Math.min(CAP,v);save();chips();updateBattery();}
@@ -235,11 +236,15 @@ function initBattery(){
     if(raw===''){syncHoyolab(ok);return;}
     var v=Number(raw);
     if(raw===''||!/^\d+$/.test(raw)||v<0||v>CAP){ok.textContent='請輸入 0 到 '+CAP+' 的整數';ok.style.color='#d9644a';return;}
-    S.battery={value:v,at:nowISO()};save();bin.value='';updateBattery();
+    S.battery={value:v,at:nowISO()};save();bin.value='';bf2().hidden=true;document.getElementById('btap').setAttribute('aria-expanded','false');updateBattery();
     ok.textContent='已更新為 '+v+'/'+CAP;ok.style.color='#7fb08a';
   }
-  document.getElementById('bset').onclick=setR;
-  bin.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();setR();}};
+  var bf=document.getElementById('bform'),bt=document.getElementById('btap');
+  function tog(open){bf.hidden=!open;bt.setAttribute('aria-expanded',open?'true':'false');if(open){document.getElementById('bok').textContent='留空直接按確認＝向 HoYoLAB 同步；輸入 0 到 '+CAP+' 則直接儲存';document.getElementById('bok').style.color='';bin.focus();}}
+  bt.onclick=function(){tog(bf.hidden);};
+  bt.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();tog(bf.hidden);}};
+  document.getElementById('bcx').onclick=function(){bin.value='';bf.hidden=true;bt.setAttribute('aria-expanded','false');document.getElementById('bok').textContent='';};
+  bf.onsubmit=function(e){e.preventDefault();setR();};
   chips();updateBattery();
   if(typeof setInterval==='function')setInterval(updateBattery,30000);
 }
