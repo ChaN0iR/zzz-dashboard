@@ -11,7 +11,9 @@ const CONFIG = {
   MAX: 240,
   SECONDS_PER_POINT: 360,       // 每 6 分鐘恢復 1 點
   REFRESH_MINUTES: 15,
-  STALE_MINUTES: 45             // 超過此時間沒成功連線，就標示「估算」
+  STALE_MINUTES: 45,            // 超過此時間沒成功連線，就標示「估算」
+  OPEN_GAME_ON_TAP: false,      // true = 點小工具直接開啟遊戲（預設開儀表板）
+  GAME_SCHEME: "zenlesszonezero://" // 推測值，未經驗證；打不開請改成正確的 scheme
 };
 // ================================================================
 
@@ -176,7 +178,7 @@ function buildWidget(state) {
         LINE = new Color("#23262c"), ACC = new Color("#e8d44d"), WARN = new Color("#e5735a");
   const w = new ListWidget();
   w.backgroundColor = BG;
-  w.url = CONFIG.DASHBOARD_URL;
+  w.url = CONFIG.OPEN_GAME_ON_TAP ? CONFIG.GAME_SCHEME : CONFIG.DASHBOARD_URL;
   w.refreshAfterDate = new Date(Date.now() + CONFIG.REFRESH_MINUTES * 60 * 1000);
   const small = config.widgetFamily === "small";
   w.setPadding(small ? 14 : 16, 16, small ? 14 : 16, 16);

@@ -169,44 +169,110 @@ function batNow(now){
   var cur=v>=CAP?v:Math.min(CAP,v+Math.max(0,Math.floor((now-at)/MIN6)));
   return{cur:cur,at:at,v:v};
 }
-function batEta(T,now){var b=batNow(now),n=now||Date.now();if(b.cur>=T)return null;return b.at+(T-b.v)*MIN6-n;}
+/* ms until battery reaches T, starting from current estimate minus spend */
+function msTo(T,from){return from>=T?0:(T-from)*MIN6;}
+function dur2(ms){
+  var m=Math.ceil(ms/60000),h=Math.floor(m/60);m=m%60;
+  if(h&&m)return h+' 小時 '+m+' 分鐘';if(h)return h+' 小時';return m+' 分鐘';
+}
+function hm(ms){
+  var o=tp(ms),same=tpDate(ms)===tpDate(Date.now());
+  var t=o.hour+':'+o.minute;if(t.length<5)t=('0'+t).slice(-5);
+  return (same?'':'明天 ')+t;
+}
 function updateBattery(){
-  var el=document.getElementById('bcur');if(!el||!S.battery)return;
-  var now=Date.now(),b=batNow(now),T=Math.max(1,Math.min(CAP,parseInt(S.batteryTarget,10)||CAP));
-  el.textContent=b.cur;
-  var f=batEta(CAP,now);
-  document.getElementById('bfull').textContent=f===null?'已滿':'滿：'+tpStamp(now+f)+'（'+dur(f)+'後）';
-  var t=batEta(T,now);
-  document.getElementById('btx').textContent=t===null?'已達成':tpStamp(now+t)+'（'+dur(t)+'後）';
+  var el=document.getElementById('bmain');if(!el||!S.battery)return;
+  var now=Date.now(),b=batNow(now);
+  var ms=msTo(CAP,b.cur);
+  el.innerHTML='電量 <b>'+b.cur+'</b>/'+CAP+'，'+(ms===0?'已滿':'滿電還要 '+dur2(ms)+'（約 '+hm(now+ms)+'）');
+  document.getElementById('bfill').style.width=Math.min(100,b.cur/CAP*100)+'%';
+  var n=parseInt(S.batteryGoal,10);
+  var q=document.getElementById('bq');
+  if(n>=1&&n<=CAP){
+    var m1=msTo(n,b.cur);
+    q.textContent=m1===0?n+' 電量：已達到':'再 '+dur2(m1)+'會有 '+n+' 電量（約 '+hm(now+m1)+'）';
+  }else q.textContent='';
+  var sp=document.getElementById('bsp'),sv=parseInt(S.batterySpend,10);
+  if(sv>=1){
+    var left=b.cur-sv;
+    if(left<0)sp.textContent='電量不足，目前只有 '+b.cur+'，還差 '+(-left)+'（約 '+hm(now+msTo(sv,b.cur))+' 才夠）';
+    else{var m2=msTo(CAP,left);sp.textContent='用掉 '+sv+' 後剩 '+left+'，'+(m2===0?'仍是滿的':dur2(m2)+'後回滿（約 '+hm(now+m2)+'）');}
+  }else sp.textContent='';
   var bn=document.getElementById('bnote');
   if(bn){var ad=new Date(b.at+8*3600000),p=function(n){return ('0'+n).slice(-2);};
    var stale=now-b.at>6*3600000;
-   bn.textContent='讀數時間 '+p(ad.getUTCHours())+':'+p(ad.getUTCMinutes())+'　電量為估算，使用後請更新讀數';
+   bn.textContent='讀數 '+b.v+'，時間 '+p(ad.getUTCHours())+':'+p(ad.getUTCMinutes())+'（台北）。電量為估算，用掉後請更新讀數'+(stale?'；讀數已超過 6 小時':'');
    bn.style.color=stale?'#c0392b':'';bn.style.opacity=stale?'1':'.75';}
-  document.getElementById('bbase').textContent='讀數 '+b.v+' @ '+tpStamp(b.at)+'（台北）';
 }
 function initBattery(){
   var el=document.getElementById('bat');if(!el)return;
-  el.innerHTML='<span class="bn"><span class="small">電量</span> <b id="bcur">-</b><span class="small"> / '+CAP+'</span></span>'+
-   '<span id="bfull" class="small"></span>'+
-   '<span class="small">目標 <input id="btg" type="number" min="1" max="'+CAP+'" value="'+esc(S.batteryTarget)+'"> '+
-   [60,120,240].map(function(x){return '<button class="mini" data-t="'+x+'">'+x+'</button>';}).join('')+' <span id="btx"></span></span>'+
-   '<span class="small">更新讀數 <input id="bin" type="number" min="0" max="999" placeholder="目前電量"> <button class="mini" id="bset">更新</button></span>'+
-   '<span id="bbase" class="small"></span>'+
-   '<span id="bnote" class="small" style="opacity:.75"></span>';
-  var tg=document.getElementById('btg');
-  function setT(v){v=parseInt(v,10);if(!(v>=1))return;S.batteryTarget=Math.min(CAP,v);tg.value=S.batteryTarget;save();updateBattery();}
-  tg.onchange=function(){setT(tg.value);};
-  [].forEach.call(el.querySelectorAll('button[data-t]'),function(b){b.onclick=function(){setT(b.getAttribute('data-t'));};});
+  var goals=[60,120,180,240];
+  el.innerHTML='<div id="bmain" class="bmain"></div>'+
+   '<div class="bbar"><i id="bfill"></i></div>'+
+   '<div class="bblk"><span class="bl">什麼時候有</span> '+
+   goals.map(function(x){return '<button class="chip" data-g="'+x+'">'+x+'</button>';}).join('')+
+   '<input id="bgi" type="number" min="1" max="'+CAP+'" placeholder="自訂"></div>'+
+   '<div id="bq" class="bres"></div>'+
+   '<div class="bblk"><span class="bl">預計用電</span> <input id="bsi" type="number" min="1" max="999" placeholder="用多少"> '+
+   '<button class="mini" id="bsc">清除</button></div>'+
+   '<div id="bsp" class="bres"></div>'+
+   '<div class="bblk"><label class="bl" for="bin">遊戲裡現在的電量</label> <input id="bin" type="number" inputmode="numeric" pattern="[0-9]*" min="0" max="240" placeholder="輸入遊戲內的數字"> <button type="button" class="mini" id="bset">更新</button></div>'+
+   '<div id="bok" class="bres" aria-live="polite"></div>'+
+   '<div id="bnote" class="small"></div>';
+  var gi=document.getElementById('bgi'),si=document.getElementById('bsi');
+  function chips(){[].forEach.call(el.querySelectorAll('.chip'),function(c){c.classList.toggle('on',parseInt(c.getAttribute('data-g'),10)===parseInt(S.batteryGoal,10));});}
+  function setG(v){v=parseInt(v,10);if(!(v>=1))return;S.batteryGoal=Math.min(CAP,v);save();chips();updateBattery();}
+  [].forEach.call(el.querySelectorAll('.chip'),function(c){c.onclick=function(){gi.value='';setG(c.getAttribute('data-g'));};});
+  gi.oninput=function(){setG(gi.value);};
+  if(!S.batteryGoal)S.batteryGoal=120;
+  if(goals.indexOf(parseInt(S.batteryGoal,10))<0)gi.value=S.batteryGoal;
+  si.value=S.batterySpend||'';
+  si.oninput=function(){var v=parseInt(si.value,10);S.batterySpend=v>=1?v:0;save();updateBattery();};
+  document.getElementById('bsc').onclick=function(){si.value='';S.batterySpend=0;save();updateBattery();};
   var bin=document.getElementById('bin');
   function setR(){
-    var v=parseInt(bin.value,10);if(isNaN(v)||v<0||v>999)return;
+    var ok=document.getElementById('bok'),raw=String(bin.value).trim();
+    var v=Number(raw);
+    if(raw===''||!/^\d+$/.test(raw)||v<0||v>CAP){ok.textContent='請輸入 0 到 '+CAP+' 的整數';ok.style.color='#d9644a';return;}
     S.battery={value:v,at:nowISO()};save();bin.value='';updateBattery();
+    ok.textContent='已更新為 '+v+'/'+CAP;ok.style.color='#7fb08a';
   }
   document.getElementById('bset').onclick=setR;
-  bin.onkeydown=function(e){if(e.key==='Enter')setR();};
-  updateBattery();
+  bin.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();setR();}};
+  chips();updateBattery();
   if(typeof setInterval==='function')setInterval(updateBattery,30000);
+}
+
+/* ---------- open game ---------- */
+var DEFAULT_SCHEME='zenlesszonezero://';
+var STORE_URL='https://apps.apple.com/tw/app/zenless-zone-zero/id1606356401';
+function initGame(){
+  var el=document.getElementById('game');if(!el)return;
+  el.innerHTML='<button id="gbtn" class="gbtn">開啟遊戲</button> <button id="gset" class="mini">設定</button>'+
+   '<div id="gset-box" class="gbox" hidden><label class="small">URL scheme <input id="gsch" class="wide" value=""></label>'+
+   '<div class="small">預設為推測值，未經驗證；若打不開請改成正確的 scheme。只在 iPhone / Android 有效，電腦版瀏覽器無法開啟遊戲。</div>'+
+   '<button class="mini" id="gdef">還原預設</button></div><div id="gmsg" class="small" hidden></div>';
+  var inp=document.getElementById('gsch'),box=document.getElementById('gset-box'),msg=document.getElementById('gmsg');
+  function cur(){var v='';try{v=localStorage.getItem('zzz-scheme')||'';}catch(e){}return v||DEFAULT_SCHEME;}
+  inp.value=cur();
+  inp.onchange=function(){var v=inp.value.trim();try{localStorage.setItem('zzz-scheme',v);}catch(e){}if(!v)inp.value=DEFAULT_SCHEME;};
+  document.getElementById('gdef').onclick=function(){try{localStorage.removeItem('zzz-scheme');}catch(e){}inp.value=DEFAULT_SCHEME;};
+  document.getElementById('gset').onclick=function(){box.hidden=!box.hidden;};
+  document.getElementById('gbtn').onclick=function(){
+    var mobile=/iPhone|iPad|iPod|Android/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    msg.hidden=false;
+    if(!mobile){msg.textContent='電腦上無法開啟遊戲，請在手機使用。';return;}
+    var left=false,onL=function(){if(document.hidden)left=true;};
+    document.addEventListener('visibilitychange',onL);window.addEventListener('pagehide',function(){left=true;},{once:true});
+    msg.textContent='正在開啟遊戲…';
+    var sch=cur();if(sch.indexOf(':')<0)sch+='://';
+    window.location.href=sch;
+    setTimeout(function(){
+      document.removeEventListener('visibilitychange',onL);
+      if(left||document.hidden){msg.hidden=true;return;}
+      msg.innerHTML='沒有開啟遊戲。可能尚未安裝，或 scheme 不正確（見設定）。<a href="'+STORE_URL+'">前往 App Store 頁面</a>';
+    },1500);
+  };
 }
 
 /* ---------- backup notice ---------- */
@@ -528,5 +594,6 @@ function render(keep){
 }
 window.addEventListener('hashchange',function(){render(false);});
 initBattery();
+initGame();
 render(false);
 })();
