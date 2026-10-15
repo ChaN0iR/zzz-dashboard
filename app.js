@@ -184,7 +184,7 @@ function dayPart(ms){
   var o=tp(ms),h=parseInt(o.hour,10)%24,d=tpDate(ms)===tpDate(Date.now())?'今天':'明天';
   var p=h<5?'凌晨':h<11?'早上':h<13?'中午':h<18?'下午':'晚上';
   var m=parseInt(o.minute,10);
-  return d+' '+('0'+h).slice(-2)+':'+('0'+m).slice(-2)+' · '+p;
+  return d+p+' '+('0'+h).slice(-2)+':'+('0'+m).slice(-2);
 }
 var BAT_SVG='<svg class="bico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><rect x="3" y="7" width="16" height="10" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="20" y="10" width="2" height="4" rx="1" fill="currentColor"/><path d="M11.5 8.5 8.5 12.5h2.6L10.4 15.5l3.2-4h-2.6z" fill="currentColor"/></svg>';
 function updateBattery(){
