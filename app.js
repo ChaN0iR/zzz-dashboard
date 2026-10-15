@@ -295,27 +295,38 @@ function handleSyncParams(){
 
 /* ---------- open game ---------- */
 var DEFAULT_SHORTCUT='打開絕區零';
-try{if(localStorage.getItem('zzz-shortcut')==='開絕區零')localStorage.removeItem('zzz-shortcut');}catch(e){}
 var UNI_URL='https://oig.hoyoverse.com/zenlessglobal/';
 var STORE_URL='https://apps.apple.com/tw/app/zenless-zone-zero/id1606356401';
+var SCHEMES=['nap://','com.hoyoverse.nap://','zenlesszonezero://','zzz://','zenlessglobal://'];
 function lsGet(k){try{return localStorage.getItem(k)||'';}catch(e){return '';}}
 function lsSet(k,v){try{if(v)localStorage.setItem(k,v);else localStorage.removeItem(k);}catch(e){}}
-function gameMethod(){var m=lsGet('zzz-method');return m==='universal'||m==='custom'?m:'shortcut';}
+/* one-time migration: old default (shortcut) -> universal link */
+(function(){
+  if(lsGet('zzz-launch-v')!=='2'){
+    if(lsGet('zzz-method')!=='custom')lsSet('zzz-method','');
+    lsSet('zzz-shortcut',lsGet('zzz-shortcut')==='開絕區零'?'':lsGet('zzz-shortcut'));
+    lsSet('zzz-launch-v','2');
+  }
+})();
+function gameMethod(){var m=lsGet('zzz-method');return m==='shortcut'||m==='custom'||m==='schemes'?m:'universal';}
 function shortcutName(){return lsGet('zzz-shortcut')||DEFAULT_SHORTCUT;}
 function gameUrl(){
   var m=gameMethod();
-  if(m==='universal')return UNI_URL;
   if(m==='custom'){var v=lsGet('zzz-custom').trim();if(v&&v.indexOf(':')<0)v+='://';return v;}
-  return 'shortcuts://run-shortcut?name='+encodeURIComponent(shortcutName());
+  if(m==='shortcut')return 'shortcuts://run-shortcut?name='+encodeURIComponent(shortcutName());
+  return UNI_URL;
 }
 function initGame(){
   var el=document.getElementById('game');if(!el)return;
-  el.innerHTML='<button id="gbtn" class="gbtn">開啟遊戲</button> <button id="gset" class="mini">設定</button>'+
+  el.innerHTML='<a id="gbtn" class="gbtn" href="'+UNI_URL+'" aria-label="開啟遊戲">開啟遊戲</a> <button id="gset" class="mini">設定</button>'+
    '<div id="gset-box" class="gbox" hidden>'+
    '<div class="small">開啟遊戲的方式</div>'+
-   '<label class="small"><input type="radio" name="gm" value="shortcut"> 捷徑（預設，需先建立捷徑）</label> '+
-   '<label class="small"><input type="radio" name="gm" value="universal"> 通用連結（'+UNI_URL+'）</label> '+
+   '<label class="small"><input type="radio" name="gm" value="universal"> 通用連結（預設）</label> '+
+   '<label class="small"><input type="radio" name="gm" value="schemes"> 試 scheme 依序嘗試（未驗證的猜測）</label> '+
+   '<label class="small"><input type="radio" name="gm" value="shortcut"> 捷徑</label> '+
    '<label class="small"><input type="radio" name="gm" value="custom"> 自訂連結</label>'+
+   '<div class="small">通用連結：若點一下開的是 Safari 而不是 App，請長按 LOGO 或按鈕，選「在「絕區零」中打開」一次，iOS 會記住。貼到網址列不會生效，必須是點擊連結。</div>'+
+   '<div class="small">試 scheme：依序嘗試 '+SCHEMES.join('、')+'，每個間隔約 0.8 秒。這些全是未驗證的猜測，不保證存在。</div>'+
    '<label class="small">捷徑名稱 <input id="gsc" class="wide" value=""></label>'+
    '<label class="small">自訂連結（任何 scheme） <input id="gcu" class="wide" value="" placeholder="例如 myapp://"></label>'+
    '<label class="small">Scriptable 腳本名稱（同步電量用） <input id="gscr" class="wide" value=""></label>'+
@@ -323,40 +334,65 @@ function initGame(){
    '<button class="mini" id="gdef">還原預設</button></div><div id="gmsg" class="small" hidden></div>';
   var box=document.getElementById('gset-box'),msg=document.getElementById('gmsg');
   var sc=document.getElementById('gsc'),cu=document.getElementById('gcu'),scr=document.getElementById('gscr');
+  var gb=document.getElementById('gbtn'),lb=document.getElementById('logobtn');
   function fill(){
     sc.value=shortcutName();cu.value=lsGet('zzz-custom');scr.value=scriptName();
     [].forEach.call(box.querySelectorAll('input[name=gm]'),function(r){r.checked=r.value===gameMethod();});
   }
   fill();
-  [].forEach.call(box.querySelectorAll('input[name=gm]'),function(r){r.onchange=function(){lsSet('zzz-method',r.value==='shortcut'?'':r.value);};});
+  [].forEach.call(box.querySelectorAll('input[name=gm]'),function(r){r.onchange=function(){lsSet('zzz-method',r.value==='universal'?'':r.value);};});
   sc.onchange=function(){var v=sc.value.trim();lsSet('zzz-shortcut',v&&v!==DEFAULT_SHORTCUT?v:'');if(!v)sc.value=DEFAULT_SHORTCUT;};
   cu.onchange=function(){lsSet('zzz-custom',cu.value.trim());};
   scr.onchange=function(){var v=scr.value.trim();lsSet('zzz-script',v&&v!==DEFAULT_SCRIPT?v:'');if(!v)scr.value=DEFAULT_SCRIPT;};
   document.getElementById('gdef').onclick=function(){['zzz-method','zzz-shortcut','zzz-custom','zzz-script','zzz-scheme'].forEach(function(k){lsSet(k,'');});fill();};
   document.getElementById('gset').onclick=function(){box.hidden=!box.hidden;};
   function helpHtml(){
-    return '沒有開啟遊戲。請先建立捷徑：開啟捷徑 App → 新增捷徑 → 加入「打開 App」→ 選絕區零 → 命名為「'+esc(shortcutName())+'」。'+
-     '<div><a class="mini" href="https://www.icloud.com/shortcuts/7e11547991bd4962808b3396c724c63f">加入現成捷徑</a> <button type="button" class="mini" id="guni">試通用連結</button> <a class="mini" href="'+STORE_URL+'">前往 App Store</a></div>';
+    var m=gameMethod();
+    var h='沒有開啟遊戲。';
+    if(m==='universal')h+='若開的是 Safari 而不是 App：長按 LOGO 或按鈕，選「在「絕區零」中打開」一次。';
+    else if(m==='shortcut')h+='請先建立捷徑：開啟捷徑 App → 新增捷徑 → 加入「打開 App」→ 選絕區零 → 命名為「'+esc(shortcutName())+'」。';
+    return h+'<div><a class="mini" href="https://www.icloud.com/shortcuts/7e11547991bd4962808b3396c724c63f">加入現成捷徑</a> <button type="button" class="mini" id="gsch">試 scheme（未驗證）</button> <a class="mini" href="'+STORE_URL+'">前往 App Store</a></div>';
   }
-  var launch=function(){
-    msg.hidden=false;
-    if(!isMobile()&&!/Android/.test(navigator.userAgent)){msg.textContent='電腦上無法開啟遊戲，請在手機使用。';return;}
+  function watch(){
+    var st={left:false};
+    var onL=function(){if(document.hidden)st.left=true;},onP=function(){st.left=true;};
+    document.addEventListener('visibilitychange',onL);window.addEventListener('pagehide',onP);
+    st.stop=function(){document.removeEventListener('visibilitychange',onL);window.removeEventListener('pagehide',onP);};
+    return st;
+  }
+  function trySchemes(){
+    var i=0,w=watch();msg.hidden=false;
+    (function next(){
+      if(w.left||document.hidden){w.stop();var ok=SCHEMES[Math.max(0,i-1)];
+        msg.innerHTML='可能是 <b>'+esc(ok)+'</b> 成功開啟了遊戲（未驗證的猜測）。 <button type="button" class="mini" id="gsave">記住這個（存成自訂連結）</button>';
+        var sv=document.getElementById('gsave');
+        if(sv)sv.onclick=function(){lsSet('zzz-custom',ok);lsSet('zzz-method','custom');cu.value=ok;fill();msg.textContent='已記住 '+ok+'，之後改用自訂連結。';};
+        return;}
+      if(i>=SCHEMES.length){w.stop();msg.innerHTML='全部 scheme 都沒有反應（皆為未驗證的猜測）。'+helpHtml();bindSch();return;}
+      msg.textContent='試 '+SCHEMES[i]+'（'+(i+1)+'/'+SCHEMES.length+'，未驗證的猜測）…';
+      try{window.location.href=SCHEMES[i];}catch(e){}
+      i++;setTimeout(next,800);
+    })();
+  }
+  function bindSch(){var g=document.getElementById('gsch');if(g)g.onclick=trySchemes;}
+  function hint(){
+    var w=watch();
+    setTimeout(function(){w.stop();if(w.left||document.hidden){msg.hidden=true;return;}msg.hidden=false;msg.innerHTML=helpHtml();bindSch();},1500);
+  }
+  var onTap=function(e){
+    box.hidden=true;
+    var m=gameMethod();
+    if(m==='universal'){hint();return;}            /* native anchor navigation, no interception */
+    e.preventDefault();
+    if(!isMobile()&&!/Android/.test(navigator.userAgent)){msg.hidden=false;msg.textContent='電腦上無法開啟遊戲，請在手機使用。';return;}
+    if(m==='schemes'){trySchemes();return;}
     var url=gameUrl();
-    if(!url){msg.textContent='尚未填寫自訂連結，請到設定填寫。';return;}
-    var left=false,onL=function(){if(document.hidden)left=true;};
-    document.addEventListener('visibilitychange',onL);window.addEventListener('pagehide',function(){left=true;},{once:true});
-    msg.textContent='正在開啟遊戲…';
-    window.location.href=url;
-    setTimeout(function(){
-      document.removeEventListener('visibilitychange',onL);
-      if(left||document.hidden){msg.hidden=true;return;}
-      msg.innerHTML=helpHtml();
-      var g=document.getElementById('guni');if(g)g.onclick=function(){window.location.href=UNI_URL;};
-    },1500);
+    if(!url){msg.hidden=false;msg.textContent='尚未填寫自訂連結，請到設定填寫。';return;}
+    msg.hidden=false;msg.textContent='正在開啟遊戲…';
+    window.location.href=url;hint();
   };
-  document.getElementById('gbtn').onclick=launch;
-  var lb=document.getElementById('logobtn');if(lb)lb.onclick=launch;
-  window.launchGame=launch;
+  [gb,lb].forEach(function(a){if(a)a.addEventListener('click',onTap);});
+  window.launchGame=function(){onTap({preventDefault:function(){}});};
 }
 
 /* ---------- backup notice ---------- */

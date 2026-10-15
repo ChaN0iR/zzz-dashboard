@@ -15,10 +15,15 @@ const CONFIG = {
   REFRESH_MINUTES: 15,
   STALE_MINUTES: 45,            // 超過此時間沒成功連線，就標示「估算」
   OPEN_GAME_ON_TAP: false,      // true = 點小工具直接開啟遊戲（預設開儀表板）
-  SHORTCUT_NAME: "打開絕區零",     // 你在「捷徑」App 建立的捷徑名稱（內容為「打開 App」→ 絕區零）
-  GAME_URL: ""                  // 留空 = 用捷徑；也可填通用連結 https://oig.hoyoverse.com/zenlessglobal/ 或任何 scheme
+  SHORTCUT_NAME: "打開絕區零",     // 僅 GAME_URL 留空時使用；你在「捷徑」App 建立的捷徑名稱（內容為「打開 App」→ 絕區零）
+  GAME_URL: "https://oig.hoyoverse.com/zenlessglobal/"  // 預設通用連結；留空且 SHORTCUT_NAME 有值才用捷徑；也可填任何 scheme
 };
 // ================================================================
+function gameTapUrl() {
+  if (CONFIG.GAME_URL) return CONFIG.GAME_URL;
+  if (CONFIG.SHORTCUT_NAME) return "shortcuts://run-shortcut?name=" + encodeURIComponent(CONFIG.SHORTCUT_NAME);
+  return CONFIG.DASHBOARD_URL;
+}
 
 const KEY_UID = "zzz_ltuid_v2";
 const KEY_TOKEN = "zzz_ltoken_v2";
@@ -181,7 +186,7 @@ function buildWidget(state) {
         LINE = new Color("#23262c"), ACC = new Color("#e8d44d"), WARN = new Color("#e5735a");
   const w = new ListWidget();
   w.backgroundColor = BG;
-  w.url = CONFIG.OPEN_GAME_ON_TAP ? (CONFIG.GAME_URL || "shortcuts://run-shortcut?name=" + encodeURIComponent(CONFIG.SHORTCUT_NAME)) : CONFIG.DASHBOARD_URL;
+  w.url = CONFIG.OPEN_GAME_ON_TAP ? gameTapUrl() : CONFIG.DASHBOARD_URL;
   w.refreshAfterDate = new Date(Date.now() + CONFIG.REFRESH_MINUTES * 60 * 1000);
   const small = config.widgetFamily === "small";
   w.setPadding(small ? 14 : 16, 16, small ? 14 : 16, 16);
@@ -361,7 +366,7 @@ async function main() {
   const widget = buildWidget(state);
   // 保險：任何狀態都必須有 https / shortcuts 連結，點擊才不會進 Scriptable 頁面
   if (!widget.url || String(widget.url).indexOf("scriptable://") === 0) {
-    widget.url = CONFIG.OPEN_GAME_ON_TAP ? (CONFIG.GAME_URL || "shortcuts://run-shortcut?name=" + encodeURIComponent(CONFIG.SHORTCUT_NAME)) : CONFIG.DASHBOARD_URL;
+    widget.url = CONFIG.OPEN_GAME_ON_TAP ? gameTapUrl() : CONFIG.DASHBOARD_URL;
   }
   if (inApp) {
     if (config.widgetFamily === "small") await widget.presentSmall(); else await widget.presentMedium();

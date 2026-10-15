@@ -88,15 +88,11 @@ iPhone 的 Safari 沒辦法直接看 cookie，所以最實際的做法是用電�
 
 絕區零沒有查得到的官方 URL scheme（先前用的 `zenlesszonezero://` 是推測，已移除）。已確認的資料：App 的 bundle id 是 `com.HoYoverse.Nap`，通用連結是 https://oig.hoyoverse.com/zenlessglobal/（已安裝會開 App，沒裝會到 App Store）。
 
-最穩的做法是建立 iOS 捷徑：
-1. 開啟「捷徑」App → 新增捷徑。
-2. 加入動作「打開 App」→ 選「絕區零」。
-3. 命名為「打開絕區零」。
-   或直接加入現成捷徑：https://www.icloud.com/shortcuts/7e11547991bd4962808b3396c724c63f
+儀表板的 LOGO 與右上「開啟遊戲」預設是真正的連結 `https://oig.hoyoverse.com/zenlessglobal/`（通用連結），已安裝遊戲時 iOS 應會直接開 App。這在真機上尚未驗證。若點了開的是 Safari：長按 LOGO 或按鈕，選「在「絕區零」中打開」一次，iOS 會記住。貼到網址列不會生效，必須是點擊連結。
 
-儀表板的 LOGO 與右上「開啟遊戲」預設會執行 `shortcuts://run-shortcut?name=打開絕區零`。到儀表板「設定」可改捷徑名稱，或改用「通用連結」「自訂連結」。若沒開成功，1.5 秒後會顯示建立捷徑的步驟與「試通用連結」「前往 App Store」按鈕。
+「設定」可改用：試 scheme 依序嘗試（`nap://` 等，全是未驗證的猜測）、捷徑（預設名稱「打開絕區零」，現成捷徑：https://www.icloud.com/shortcuts/7e11547991bd4962808b3396c724c63f）、自訂連結。
 
-小工具：把腳本 CONFIG 的 `OPEN_GAME_ON_TAP` 改成 `true`，點小工具就會開遊戲（預設是開儀表板）。預設用 `SHORTCUT_NAME` 的捷徑；`GAME_URL` 填了就改用該連結。
+小工具：把腳本 CONFIG 的 `OPEN_GAME_ON_TAP` 改成 `true`，點小工具就會開遊戲（預設是開儀表板）。`GAME_URL` 預設是通用連結 `https://oig.hoyoverse.com/zenlessglobal/`；只有 `GAME_URL` 留空且 `SHORTCUT_NAME` 有值時才用捷徑。
 
 ## 儀表板「留空更新」同步真實電量
 
