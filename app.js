@@ -772,6 +772,7 @@ function render(keep){
   else if(route==='goals')html=vGoals();
   else if(route==='events')html=vEvents();
   else if(route==='data')html=vData();
+  else if(route==='record')html='<h1>戰績</h1><div id="rec"></div>';
   else html=vOverview();
   app.innerHTML=backupNotice()+html;
   if(route==='agents')bindAgents();
@@ -780,6 +781,7 @@ function render(keep){
   if(route==='daily'){bindDaily();bindGeneric();}
   if(route==='goals'){bindGoals();bindGeneric();}
   if(route==='events'){bindEvents();bindGeneric();}
+  if(route==='record'&&window.zzzRecordMount)zzzRecordMount(document.getElementById('rec'));
   bindCommon();
   phxRender();phxBtns();
   updateBattery();
